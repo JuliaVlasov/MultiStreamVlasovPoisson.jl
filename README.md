@@ -4,7 +4,7 @@
 ## Compilation
 
 ```
-g++ -I. *.cpp -o main
+g++ -O3 -I. *.cpp -o main
 ```
 
 ## Run
