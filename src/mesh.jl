@@ -6,19 +6,18 @@ export GaussHermiteMesh
 
 struct GaussHermiteMesh <: AbstractMesh
 
-    eps::Float64
     nx::Int
     dx::Float64
     ng::Int
     x::Vector{Float64}
     w::Vector{Float64}
 
-    function GaussHermiteMesh(eps, nx, ng)
+    function GaussHermiteMesh(nx, ng)
 
         dx = 1.0 / (nx + 1)
         x, w = gausshermite(ng)
 
-        return new(eps, nx, dx, ng, x, w)
+        return new(nx, dx, ng, x, w)
 
     end
 
@@ -42,7 +41,7 @@ struct UniformMesh <: AbstractMesh
         dx = 1.0 / (nx + 1)
         v = LinRange(vmin, vmax, nx + 1)
 
-        return new(eps, nx, dx, ng, vmin, vmax, x, v)
+        return new(nx, dx, ng, vmin, vmax, x, v)
 
     end
 

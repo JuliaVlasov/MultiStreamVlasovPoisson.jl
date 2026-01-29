@@ -1,6 +1,7 @@
 using LinearAlgebra
 using MultiStreamVlasovPoisson
 using Plots
+using .Threads
 
 
 """
@@ -25,7 +26,7 @@ function g(x::Float64, dx::Float64)::Float64
     if x < -dx
         return 0.0
     elseif x >= -dx && x <= dx
-        return (x + dx) * (x + dx) / (4 * dx)
+        return (x + dx) * (x + dx) / (4dx)
     else
         return x
     end
@@ -82,7 +83,6 @@ function update_single_fluid_sol!(
     old_u = zeros(nx + 1)
     new_phi = zeros(nx + 1)
     q = zeros(nx + 1)
-    p = collect(1:(nx + 1))
 
     m_upd_rho = zeros(nx + 1, nx + 1)
     m_upd_u = zeros(nx + 1, nx + 1)
@@ -115,8 +115,6 @@ function update_single_fluid_sol!(
         # Solve for rho
         rho .= m_upd_rho \ rho_at_step_n
 
-        # Update phi
-        solve!(phi, poisson, rho_tot)
 
         # Update u using Newton algorithm
         v .= u
@@ -170,9 +168,9 @@ function main()
     eps = 1.0
     nx = 100
     vmin, vmax = -4.0, 4.0
-    ng = 10
+    ng = 100
 
-    mesh = GaussHermiteMesh(eps, nx, ng)
+    mesh = GaussHermiteMesh(nx, ng)
 
     rho, u, rho_tot = compute_initial_condition(mesh)
 
@@ -180,23 +178,22 @@ function main()
 
     phi = -log.(rho_tot)
 
-    solve!(phi, poisson, rho_tot)
-
     dt = mesh.dx
-    tfinal = 1000 * dt  # Final time
+    tfinal = 800 * dt  # Final time
     time = [0.0]
 
-    elec_energy = [compute_elec_energy(phi, mesh)]
+    elec_energy = [compute_elec_energy(phi, mesh, eps)]
 
     n = 0
     while n * dt <= tfinal
 
-        for j in 1:ng
+        # Update phi
+        solve!(phi, poisson, rho_tot)
+        @threads for j in 1:ng
             update_single_fluid_sol!(mesh, poisson, view(rho, :, j), view(u, :, j), rho_tot, phi, dt)
         end
-
         compute_rho_total!(rho_tot, mesh, rho)
-        push!(elec_energy, compute_elec_energy(phi, mesh))
+        push!(elec_energy, compute_elec_energy(phi, mesh, eps))
         n += 1
         push!(time, n * dt)
         println("iteration: $n and time = $(n * dt)")
@@ -210,4 +207,4 @@ end
 
 @time time, elec_energy = main()
 
-plot(time, elec_energy)
+plot(time, elec_energy, yscale = :log10)

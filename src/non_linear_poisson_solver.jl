@@ -62,38 +62,40 @@ export solve!
 """
 $(SIGNATURES)
     
-Solve the quasi-linear elliptic problem: epsilon^2*Delta(phi) + exp(-phi) = rho on the Torus.
+Solve the quasi-linear elliptic problem: ϵ^2 Δϕ + exp(-ϕ) = ρ on the Torus.
+
 Uses Newton's method.
 """
 function solve!(phi::Vector{Float64}, solver::NonLinearPoissonSolver, rho_tot::Vector{Float64})
 
-    eps = solver.eps
+    ϵ = solver.eps
     nx = solver.nx
     iter = 0
     delta = zeros(nx + 1)
 
     while iter < solver.maxiter
-        solver.rhs[1] = eps * eps * (phi[2] - 2 * phi[1] + phi[nx + 1]) + exp(-phi[1]) - rho_tot[1]
-        solver.jacobian[1, 1] = -2 * eps * eps - exp(-phi[1])
-        solver.jacobian[1, 2] = eps * eps
-        solver.jacobian[1, nx + 1] = eps * eps
+
+        solver.rhs[1] = ϵ * ϵ * (phi[2] - 2 * phi[1] + phi[nx + 1]) + exp(-phi[1]) - rho_tot[1]
+        solver.jacobian[1, 1] = -2 * ϵ * ϵ - exp(-phi[1])
+        solver.jacobian[1, 2] = ϵ * ϵ
+        solver.jacobian[1, nx + 1] = ϵ * ϵ
 
         for i in 2:nx
-            solver.rhs[i] = eps * eps * (phi[i + 1] - 2 * phi[i] + phi[i - 1]) + exp(-phi[i]) - rho_tot[i]
-            solver.jacobian[i, i - 1] = eps * eps
-            solver.jacobian[i, i] = -2 * eps * eps - exp(-phi[i])
-            solver.jacobian[i, i + 1] = eps * eps
+            solver.rhs[i] = ϵ * ϵ * (phi[i + 1] - 2 * phi[i] + phi[i - 1]) + exp(-phi[i]) - rho_tot[i]
+            solver.jacobian[i, i - 1] = ϵ * ϵ
+            solver.jacobian[i, i] = -2 * ϵ * ϵ - exp(-phi[i])
+            solver.jacobian[i, i + 1] = ϵ * ϵ
         end
 
-        solver.rhs[nx + 1] = eps * eps * (phi[1] - 2 * phi[nx + 1] + phi[nx]) + exp(-phi[nx + 1]) - rho_tot[nx + 1]
-        solver.jacobian[nx + 1, 1] = eps * eps
-        solver.jacobian[nx + 1, nx + 1] = -2 * eps * eps - exp(-phi[nx + 1])
-        solver.jacobian[nx + 1, nx] = eps * eps
+        solver.rhs[nx + 1] = ϵ * ϵ * (phi[1] - 2 * phi[nx + 1] + phi[nx]) + exp(-phi[nx + 1]) - rho_tot[nx + 1]
+        solver.jacobian[nx + 1, 1] = ϵ * ϵ
+        solver.jacobian[nx + 1, nx + 1] = -2 * ϵ * ϵ - exp(-phi[nx + 1])
+        solver.jacobian[nx + 1, nx] = ϵ * ϵ
+
+        norm(solver.rhs, Inf) < 1.0e-7 && return
 
         delta .= solver.jacobian \ solver.rhs
         phi .-= delta
-
-        norm(solver.rhs, Inf) >= 1.0e-7 && break
 
     end
     return
