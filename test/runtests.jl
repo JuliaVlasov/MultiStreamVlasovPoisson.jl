@@ -6,7 +6,7 @@ using Test
     nx = 100
     ng = 3
     eps = 1.0
-    mesh = GaussHermiteMesh(eps, nx, ng)
+    mesh = GaussHermiteMesh(nx, ng)
 
     f(x) = x^4
 
@@ -23,7 +23,7 @@ end
     nx = 100
     ng = 100
 
-    mesh = GaussHermiteMesh(eps, nx, ng)
+    mesh = GaussHermiteMesh(nx, ng)
 
     rho, u, rho_tot = compute_initial_condition(mesh)
 
