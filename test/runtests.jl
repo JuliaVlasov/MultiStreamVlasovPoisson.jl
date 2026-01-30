@@ -1,3 +1,4 @@
+using Aqua
 using MultiStreamVlasovPoisson
 using Test
 
@@ -40,4 +41,9 @@ end
 
     @test true
 
+end
+
+
+@testset "Aqua.jl" begin
+  Aqua.test_all(MultiStreamVlasovPoisson)
 end
