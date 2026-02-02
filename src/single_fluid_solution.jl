@@ -21,12 +21,12 @@ struct SingleFluidSolution
             push!(rows, i); push!(cols, i); push!(vals, 0.0)
             push!(rows, i); push!(cols, ir); push!(vals, 0.0)
             push!(rows, i); push!(cols, il); push!(vals, 0.0)
-            
-        end
-        m_upd_rho = sparse( rows, cols, vals, nx + 1, nx + 1)
-        jac_t = sparse( rows, cols, vals, nx + 1, nx + 1)
 
-        new(m_upd_rho, jac_t)
+        end
+        m_upd_rho = sparse(rows, cols, vals, nx + 1, nx + 1)
+        jac_t = sparse(rows, cols, vals, nx + 1, nx + 1)
+
+        return new(m_upd_rho, jac_t)
     end
 
 
@@ -99,7 +99,8 @@ $(SIGNATURES)
 
 Update one single fluid solution using fixed-point iteration.
 """
-function update!( mesh::AbstractMesh, poisson::NonLinearPoissonSolver,
+function update!(
+        mesh::AbstractMesh, poisson::NonLinearPoissonSolver,
         rho::AbstractVector, u::AbstractVector, phi::Vector,
         dt::Float64, maxiter::Int = 10
     )
@@ -135,10 +136,8 @@ function update!( mesh::AbstractMesh, poisson::NonLinearPoissonSolver,
         rho .= sol.m_upd_rho \ rho_at_step_n
 
         # Update u using Newton algorithm
-        v .= u
+        copyto!(v, u)
         it_newt = 0
-        fill!(t, 0.0)
-        t[1] = 1.0
 
         while norm(t, Inf) > 1.0e-10 && it_newt < maxiter
 
@@ -173,13 +172,13 @@ function update!( mesh::AbstractMesh, poisson::NonLinearPoissonSolver,
             it_newt += 1
         end
 
-        old_u .= u
-        u .= v
+        copyto!(old_u, u)
+        copyto!(u, v)
 
         iter += 1
+
     end
 
     return
 
 end
-

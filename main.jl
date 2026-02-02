@@ -1,3 +1,4 @@
+using DispersionRelations
 using LinearAlgebra
 using MultiStreamVlasovPoisson
 using Plots
@@ -6,11 +7,11 @@ using .Threads
 function main(hermite_quad)
 
     eps = 1.0
-    nx = 100
+    nx = 200
     vmin, vmax = -4.0, 4.0
-    ng = 100
+    ng = 200
 
-    if hermite_quad 
+    if hermite_quad
         mesh = GaussHermiteMesh(nx, ng)
     else
         mesh = UniformMesh(nx, vmin, vmax, ng)
@@ -23,7 +24,7 @@ function main(hermite_quad)
     phi = -log.(rho_tot)
 
     dt = mesh.dx
-    tfinal = 100 * dt  # Final time
+    tfinal = 200 * dt  # Final time
     time = [0.0]
 
     elec_energy = [compute_elec_energy(phi, mesh, eps)]
@@ -34,8 +35,8 @@ function main(hermite_quad)
         # Update phi
         solve!(phi, poisson, rho_tot)
 
-        for j in 1:ng
-            update!( mesh, poisson, view(rho, :, j), view(u, :, j), phi, dt)
+        @threads for j in 1:ng
+            update!(mesh, poisson, view(rho, :, j), view(u, :, j), phi, dt)
         end
 
         compute_rho_total!(rho_tot, mesh, rho)
@@ -51,9 +52,11 @@ function main(hermite_quad)
 end
 
 @time time, elec_energy = main(false)
-plot(time, elec_energy, yscale = :log10, label = "uniform")
+plot(time, elec_energy, yaxis = :log, label = "uniform")
 
 @time time, elec_energy = main(true)
-plot!(time, elec_energy, yscale = :log10, label = "hermite")
+plot!(time, elec_energy, yaxis = :log, label = "hermite")
 
-
+line, ω, = fit_complex_frequency(time, elec_energy, use_peaks = 1:2)
+plot!(time, line; yaxis = :log)
+title!("ω = $(imag(ω))")

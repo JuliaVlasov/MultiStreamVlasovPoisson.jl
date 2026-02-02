@@ -45,5 +45,5 @@ end
 
 
 @testset "Aqua.jl" begin
-  Aqua.test_all(MultiStreamVlasovPoisson)
+    Aqua.test_all(MultiStreamVlasovPoisson)
 end

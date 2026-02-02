@@ -4,19 +4,21 @@ version = "0.1.0"
 authors = ["Mehdi Badsi <mehdi.badsi@univ-nantes.fr>", "Pierre Navaro <pierre.navaro@math.cnrs.fr>"]
 
 [deps]
+DispersionRelations = "78f632dc-6214-4aca-89df-9f86f5ac7c9e"
 DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
 FastGaussQuadrature = "442a2c76-b920-505d-bb47-c5924d526838"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [compat]
-julia = "1.12"
 Aqua = "0.8.14"
+DispersionRelations = "1.0.0"
 DocStringExtensions = "0.9.5"
 FastGaussQuadrature = "1.1.0"
 LinearAlgebra = "1.12.0"
 SparseArrays = "1.12.0"
 Test = "1.11.0"
+julia = "1.12"
 
 [extras]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"

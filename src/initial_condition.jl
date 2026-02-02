@@ -63,9 +63,9 @@ function compute_initial_condition(mesh::UniformMesh)
         alpha = vmin + (j - 1) * (vmax - vmin) / (ng - 1)
         for i in 1:(nx + 1)
             x_i = (i - 1) * mesh.dx
-            rho[i,j] = f0(x_i, alpha) / mean_f0(alpha)
-            u[i,j] = alpha
-            rho_tot[i] += rho[i,j] * mean_f0(alpha) / sf0
+            rho[i, j] = f0(x_i, alpha) / mean_f0(alpha)
+            u[i, j] = alpha
+            rho_tot[i] += rho[i, j] * mean_f0(alpha) / sf0
         end
     end
 
