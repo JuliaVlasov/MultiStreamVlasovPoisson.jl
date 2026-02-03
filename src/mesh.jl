@@ -27,18 +27,24 @@ export UniformMesh
 
 mutable struct UniformMesh <: AbstractMesh
 
+    xmin::Float64
+    xmax::Float64
     nx::Int
     dx::Float64
     ng::Int
     vmin::Float64
     vmax::Float64
     sf0::Float64
+    x::Vector{Float64}
+    kx::Vector{Float64}
 
-    function UniformMesh(nx, vmin, vmax, ng)
+    function UniformMesh(xmin, xmax, nx, vmin, vmax, ng)
 
-        dx = 1.0 / (nx + 1)
+        x = LinRange(xmin, xmax, nx+2)[1:end-1]
+        dx = (xmax - xmin) / (nx + 1)
         sf0 = 0.0
-        return new(nx, dx, ng, vmin, vmax, sf0)
+        kx = collect( 2π / (xmax - xmin) * fftfreq(nx+1, nx+1))
+        return new(xmin, xmax, nx, dx, ng, vmin, vmax, sf0, x, kx)
 
     end
 
