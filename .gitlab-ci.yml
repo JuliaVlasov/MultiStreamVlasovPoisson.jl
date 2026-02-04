@@ -1,11 +1,14 @@
 image: registry.gitlab.inria.fr/navarop/julia
 
-before_script:
-  - julia --project=@. -e "import Pkg; Pkg.build()"
-
 default:
+  stage: test
   script:
-    - julia --project=@. -e "import Pkg; Pkg.test()"
+    - julia --project=@. -e "import Pkg; Pkg.build(); Pkg.test()"
+  tags:
+    - ci.inria.fr
+    - medium
+    - linux
+    - v2025
 
 pages:
   stage: deploy
