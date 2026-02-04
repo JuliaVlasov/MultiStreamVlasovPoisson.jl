@@ -1,6 +1,7 @@
 module MultiStreamVlasovPoisson
 
 using DocStringExtensions
+import DispersionRelations
 
 include("mesh.jl")
 include("initial_condition.jl")
