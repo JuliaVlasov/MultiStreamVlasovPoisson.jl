@@ -4,10 +4,11 @@ using MultiStreamVlasovPoisson
 using Plots
 using .Threads
 
+
 function main(hermite_quad)
 
     eps = 1.0
-    nx = 500
+    nx = 200
     k = 0.5
     xmin, xmax = 0.0, 2π / k
     vmin, vmax = -6.0, 6.0
@@ -19,7 +20,9 @@ function main(hermite_quad)
         mesh = UniformMesh(xmin, xmax, nx, vmin, vmax, ng)
     end
 
-    rho, u, rho_tot = compute_initial_condition(mesh, k)
+    rho, u, rho_tot, vp = compute_initial_condition(mesh, k)
+
+    rho_tot_init=copy(rho_tot)
 
     poisson = NonLinearPoissonSolver(eps, nx)
 
@@ -30,8 +33,8 @@ function main(hermite_quad)
     u_at_step_n   = zeros(nx + 1,ng)    
     rho_at_step_n = zeros(nx + 1,ng)    
 
-    dt = 10*mesh.dx
-    tfinal = 100 * dt  # Final time
+    dt = mesh.dx
+    tfinal =  500*dt  # Final time
     time = [0.0]
 
     @show elec_energy = [compute_elec_energy(phi, mesh, eps)]
@@ -91,11 +94,13 @@ function main(hermite_quad)
 
     end
 
-    return time, elec_energy
+    return time, elec_energy, rho_tot_init, vp
 
 end
 
-@time t, elec_energy = main(false)
+
+
+@time t, elec_energy, rho_tot_init, vp = main(false)
 plot(t, elec_energy, yaxis = :log, label = "uniform")
 
 # @time t, elec_energy = main(true)

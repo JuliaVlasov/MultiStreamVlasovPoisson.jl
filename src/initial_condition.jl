@@ -54,64 +54,43 @@ function compute_initial_condition(mesh::UniformMesh, k)
     rho = zeros(nx + 1, ng)
     u = zeros(nx + 1, ng)
     rho_tot = zeros(nx + 1)
-
+    xp,vp,vps = zeros(ng)
+    
+    xp,vp = landau(ng)
+    vps=sort(vp)
+    
     sf0 = 0.0
     for j in 1:ng
-        alpha = vmin + (j - 1) * (vmax - vmin) / (ng - 1)
+#        alpha = vmin + (j - 1) * (vmax - vmin) / (ng - 1)
+        alpha = vps[j]
         sf0 += mean_f0(alpha)
     end
+
+    @show sf0
+
     for j in 1:ng
-        alpha = vmin + (j - 1) * (vmax - vmin) / (ng - 1)
+#        alpha = vmin + (j - 1) * (vmax - vmin) / (ng - 1)
+	alpha =	vps[j]
         for i in 1:(nx + 1)
             x_i = mesh.x[i]
             rho[i, j] = f0(x_i, alpha, k) / mean_f0(alpha)
             u[i, j] = alpha
-            rho_tot[i] += rho[i, j] * mean_f0(alpha) / sf0
+#            rho_tot[i] += rho[i, j] * mean_f0(alpha) / sf0
+            rho_tot[i] += rho[i, j] / ng 
         end
     end
 
+    @show rho_tot
+
     mesh.sf0 = sf0
 
-    return rho, u, rho_tot
+    return rho, u, rho_tot, vps
 
 end
-"""
 
-"""
-    Landau( α, kx)
 
-Test structure to initialize a particles distribtion for
-Landau damping test case in 1D1V and 1D2V
-
-"""
-struct LandauDamping
-    alpha::Float64
-    kx::Float64
-end
-
-"""
-    sample!(d, pg)
-
-Sampling from a probability distribution to initialize a Landau damping in
-1D2V space.
-
-```math
-f_0(x,v,t) = \\frac{n_0}{2π v_{th}^2} ( 1 + \\alpha cos(k_x x))
- exp( - \\frac{v_x^2+v_y^2}{2 v_{th}^2})
-```
-The newton function solves the equation ``P(x)-r=0`` with Newton’s method
-```math
-x^{n+1} = x^n – (P(x)-(2\\pi r / k)/f(x) 
-```
-with 
-```math
-P(x) = \\int_0^x (1 + \\alpha cos(k_x y)) dy = x + \\frac{\\alpha}{k_x} sin(k_x x)
-```
-"""
-function sample!(d::LandauDamping, pg::ParticleGroup{1,2})
-    alpha, kx = d.alpha, d.kx
-
-    function newton(r)
+ function newton(r)
+        kx, alpha = 0.5, 0.001
         x0, x1 = 0.0, 1.0
         r *= 2π / kx
         while (abs(x1 - x0) > 1e-12)
@@ -120,19 +99,28 @@ function sample!(d::LandauDamping, pg::ParticleGroup{1,2})
             x0, x1 = x1, x0 - (p - r) / f
         end
         return x1
-    end
+ end
 
-    s = SobolSeq(2)
-    nbpart = pg.n_particles
+export landau
 
-    for i in 1:nbpart
-        v = sqrt(-2 * log((i - 0.5) / nbpart))
-        r1, r2 = Sobol.next!(s)
-        θ = r1 * 2π
-        set_x!(pg, i, newton(r2))
-        set_v!(pg, i, [v * cos(θ), v * sin(θ)])
-        set_weights!(pg, i, 2 * pi / kx / nbpart)
-    end
+
+function landau( nbpart :: Int64)
+
+   xp = Float64[]
+   vp = Float64[]
+
+   s = SobolSeq(2)
+
+   for k=0:nbpart-1
+
+      v = sqrt(-2 * log( (k+0.5)/nbpart))
+      r1, r2 = next!(s)
+      θ = r1 * 2π
+      push!(xp,  newton(r2))
+      push!(vp,  v * sin(θ))
+
+   end
+
+   xp, vp
+
 end
-
-"""
