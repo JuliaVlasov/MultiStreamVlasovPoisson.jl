@@ -12,5 +12,5 @@ function compute_elec_energy(phi::Vector{Float64}, mesh::AbstractMesh, eps)::Flo
         ir = mod1(i + 1, nx + 1)
         e += 0.5 * eps * eps * dx * (phi[ir] - phi[i])^2 / (dx * dx)
     end
-    return e
+    return sqrt(e)
 end

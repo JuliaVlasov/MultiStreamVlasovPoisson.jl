@@ -187,6 +187,7 @@ function update!(
 end
 
 
+"""
 
 """
 $(SIGNATURES)
@@ -195,12 +196,14 @@ Update one single fluid solution using fixed-point iteration.
 """
 function update_rho!(
         mesh::AbstractMesh, rho::AbstractVector, u::AbstractVector,
-	rho_at_step_n::AbstractVector, dt::Float64
+        dt::Float64
     )
 
     sol = SingleFluidSolution(mesh)
     nx, dx = mesh.nx, mesh.dx
     iter = 0
+
+    rho_at_step_n = copy(rho)
 
     # Update rho with new computed velocity
     for i in 1:(nx + 1)
@@ -224,14 +227,18 @@ $(SIGNATURES)
 Update one single fluid solution using fixed-point iteration.
 """
 function update_u!(
-        mesh::AbstractMesh, rho::AbstractVector, u::AbstractVector,
-	phi::Vector, rho_at_step_n::AbstractVector, u_at_step_n::AbstractVector,
-	dt::Float64, maxiter::Int = 10
+        mesh::AbstractMesh, poisson::NonLinearPoissonSolver,
+        rho::AbstractVector, u::AbstractVector, phi::Vector,
+        dt::Float64, maxiter::Int = 10
     )
 
     sol = SingleFluidSolution(mesh)
     nx, dx = mesh.nx, mesh.dx
     iter = 0
+
+    rho_at_step_n = copy(rho)
+    u_at_step_n = copy(u)
+    old_u = zeros(nx + 1)
 
     # For Newton part for v
     t = zeros(nx + 1)
@@ -277,11 +284,11 @@ function update_u!(
          v .-= delta
 
          it_newt += 1
-
      end
 
-     copyto!(u, v)
+        copyto!(u, v)
 
     return
 
 end
+"""
