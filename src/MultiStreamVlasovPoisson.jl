@@ -3,6 +3,7 @@ module MultiStreamVlasovPoisson
 using DocStringExtensions
 using FFTW
 
+include("grid.jl")
 include("mesh.jl")
 include("initial_condition.jl")
 include("compute_rho.jl")

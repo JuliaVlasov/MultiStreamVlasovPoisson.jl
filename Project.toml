@@ -1,7 +1,7 @@
 name = "MultiStreamVlasovPoisson"
 uuid = "abfc845c-36a9-4d8b-9974-a67c5cbc791f"
-authors = ["Mehdi Badsi <mehdi.badsi@univ-nantes.fr>", "Pierre Navaro <pierre.navaro@math.cnrs.fr>"]
 version = "0.1.0"
+authors = ["Mehdi Badsi <mehdi.badsi@univ-nantes.fr>", "Pierre Navaro <pierre.navaro@math.cnrs.fr>"]
 
 [deps]
 DispersionRelations = "78f632dc-6214-4aca-89df-9f86f5ac7c9e"
@@ -19,6 +19,7 @@ DispersionRelations = "1.0.0"
 DocStringExtensions = "0.9.5"
 FFTW = "1.10.0"
 FastGaussQuadrature = "1.1.0"
+Sobol = "1.5.0"
 Test = "1.11.0"
 julia = "1.10"
 

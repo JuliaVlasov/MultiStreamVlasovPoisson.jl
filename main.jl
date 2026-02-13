@@ -4,104 +4,98 @@ using MultiStreamVlasovPoisson
 using Plots
 using .Threads
 
-
 function main(hermite_quad)
-
     eps = 1.0
-    nx = 500
+    nx = 1000
     k = 0.5
+    T = 1.0 
     xmin, xmax = 0.0, 2π / k
-    vmin, vmax = -6.0, 6.0
-    ng = 100
+    #Construct the mesh in space
+    mesh_x = UniformMesh(xmin,xmax,nx)
+    #Construct the grid in velocity
+    nv = 500
+    vmin, vmax = -nv^0.5, nv^0.5 #-7.0, 7.0
+    #if hermite_quad
+    #grid_v = GaussHermiteGrid(nv,T)
+    #else
+    grid_v = UniformGrid(vmin, vmax, nv, T)
+    #nd
+    #grid_v = MonteCarloGrid(nv)
 
-    if hermite_quad
-        mesh = GaussHermiteMesh(nx, ng)
-    else
-        mesh = UniformMesh(xmin, xmax, nx, vmin, vmax, ng)
-    end
-
-    rho, u, rho_tot, vp = compute_initial_condition(mesh, k)
-
+    rho, u, rho_tot = compute_initial_condition(mesh_x,grid_v,k,T)
     rho_tot_init=copy(rho_tot)
-
-    poisson = NonLinearPoissonSolver(eps, nx)
-
+    #For every x_i f[x_i,.] is vector of size the cardinality of u[x_i,.] 
+    # f is not a rectangular Matrix the number of column varies for each x_i.
+    #f = compute_f(mesh_x,grid_v,rho,u) work in progress
+   # l = @layout [a{0.7w} b; c{0.2h}]
+   # pf = plot(mesh_x.x,u, f,st = [:surface, :contourf])
+    #display(plot(mesh_x.x, rho_tot))
+    #Solve the Poisson equation initially
     phi = -log.(rho_tot)
-    #display(plot(mesh.x, rho_tot))
-    poisson!(phi, mesh, rho_tot)
+    poisson!(phi, mesh_x, rho_tot)
+    #poisson = NonLinearPoissonSolver(eps, nx)
+    #solve!(phi, poisson, rho_tot)
 
-    u_at_step_n   = zeros(nx + 1,ng)    
-    rho_at_step_n = zeros(nx + 1,ng)    
+    
+    
+    u_at_step_n   = zeros(nx + 1,nv)    
+    rho_at_step_n = zeros(nx + 1,nv)    
 
-    dt = mesh.dx
-    tfinal =  1000*dt  # Final time
+    dt = 2*mesh_x.dx
+    tfinal =  100*dt  # Final time
     time = [0.0]
 
-    @show elec_energy = [compute_elec_energy(phi, mesh, eps)]
+    @show elec_energy = [compute_elec_energy(phi, mesh_x, eps)]
 
     n = 0
     while n * dt <= tfinal
-
-        # Update phi
-        #solve!(phi, poisson, rho_tot)
-        #poisson!(phi, mesh, rho_tot)
-
 	iter = 0
-        err=1e-10
+    err=1e-10
 	maxiter=50
 
         copyto!(rho_at_step_n, rho)
         copyto!(u_at_step_n, u)	
-        old_u = zeros(nx + 1,ng)
+        old_u = zeros(nx + 1,nv)
     
-       #loop for fixed point in u
+       #Fixed point iterations to solve the non linear MultiStream pressureless Euler-Poisson system
        ##########################
        while norm(u .- old_u, Inf) / norm(u, Inf) > err && iter < maxiter
 
 
 	  #@show norm(u .- old_u, Inf) / norm(u, Inf)
 
-          @threads for j in 1:ng	 
-              update_rho!(mesh, view(rho, :, j), view(u, :, j), view(rho_at_step_n, :, j), dt)
+          @threads for j in 1:nv	 
+              update_rho!(mesh_x, view(rho, :, j), view(u, :, j), view(rho_at_step_n, :, j), dt)
           end
 
-	  compute_rho_total!(rho_tot, mesh, rho)
+	  compute_rho_total!(rho_tot,grid_v,rho)
 	  #solve!(phi, poisson, rho_tot)
-	  poisson!(phi, mesh, rho_tot)	  
+	  poisson!(phi, mesh_x, rho_tot)	  
 
           copyto!(old_u, u)
 
-	  @threads for j in 1:ng
-	  	   update_u!(mesh, view(rho, :, j), view(u, :, j), phi,
+	  @threads for j in 1:nv
+	  	   update_u!(mesh_x, view(rho, :, j), view(u, :, j), phi,
 		             view(rho_at_step_n, :, j), view(u_at_step_n, :, j), dt, maxiter)
           end
 
-#        @threads for j in 1:ng
-#            update!(mesh, poisson, view(rho, :, j), view(u, :, j), phi, dt)
-#        end
-
          iter += 1
-
-	 #@show iter
 	end
 
 
-        compute_rho_total!(rho_tot, mesh, rho)
-        push!(elec_energy, compute_elec_energy(phi, mesh, eps))
+        compute_rho_total!(rho_tot, grid_v, rho)
+        push!(elec_energy, compute_elec_energy(phi, mesh_x, eps))
         n += 1
         push!(time, n * dt)
         println("iteration: $n , time = $(n * dt), elec energy = $(last(elec_energy))")
 
     end
 
-    return time, elec_energy, rho_tot_init, vp
+    return time, elec_energy
 
 end
-
-
-
-@time t, elec_energy, rho_tot_init, vp = main(false)
-plot(t, elec_energy, yaxis = :log, label = "uniform")
+@time time, elec_energy = main(true)
+plot(time, elec_energy, yaxis = :log, label = "UniformGrid")
 
 # @time t, elec_energy = main(true)
 # plot!(t, elec_energy, yaxis = :log, label = "hermite")
