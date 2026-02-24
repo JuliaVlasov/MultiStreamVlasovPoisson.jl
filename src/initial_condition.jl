@@ -14,12 +14,13 @@ Mean of the initial condition in x // The perturbation in x must be of zero mean
 
 function u_ini(x::Float64,k::Float64,test_case::String)::Float64
     u = 0.0
+    a = 0.1
     if(test_case== "landau_damping")
         u = 0
     elseif(test_case == "two_streams")
         u = 2.4
     elseif(test_case =="mono_kinetic")
-        u = cos(k*x)
+        u = a*cos(k*x)
     else
         u = 0.0
     end
@@ -43,7 +44,7 @@ end
 $(SIGNATURES)
 Initial condition for the Vlasov-equation 
     1) Maxwellian with perturbation : f_0(x,v) = M_T(v) * (1+a * cos(kx))
-    2) Two stream with perturbation : f_0(x,v) = 0.5 *( M_T(v-u0) + M_T(v+u0)) * (1+ a * cos(kx)), u_0 = cst
+    2) Two stream with perturbation : f_0(x,v) = 0.5 *( M_T(v-u0) + M_T(v+u0)) * (1+ a * cos(kx)), u_0 = 2.4 k = 0.2
     3) Monokinetic  : f_0(x,v) = M_T(v-u0(x))
 """
 function f0(x::Float64, v::Float64, k::Float64, T::Float64, u0::Float64,test_case::String)::Float64
