@@ -2,6 +2,7 @@ module MultiStreamVlasovPoisson
 
 using DocStringExtensions
 import DispersionRelations
+using FFTW
 
 include("mesh.jl")
 include("initial_condition.jl")

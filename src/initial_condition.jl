@@ -12,10 +12,9 @@ $(SIGNATURES)
     
 Initial condition for the Vlasov-equation (Penrose-stable equilibra with a perturbation).
 """
-function f0(x::Float64, v::Float64)::Float64
+function f0(x::Float64, v::Float64, k)::Float64
     a = 0.01
-    k = 1.0
-    return (1.0 / sqrt(2π)) * exp(-0.5 * v * v) * (1 + a * cos(2π * k * x))
+    return (1.0 / sqrt(2π)) * exp(-0.5 * v * v) * (1 + a * cos(k * x))
 end
 
 export compute_initial_condition
@@ -46,7 +45,7 @@ function compute_initial_condition(mesh::GaussHermiteMesh)
 
 end
 
-function compute_initial_condition(mesh::UniformMesh)
+function compute_initial_condition(mesh::UniformMesh, k)
 
     nx, ng = mesh.nx, mesh.ng
     vmin, vmax = mesh.vmin, mesh.vmax
@@ -62,8 +61,8 @@ function compute_initial_condition(mesh::UniformMesh)
     for j in 1:ng
         alpha = vmin + (j - 1) * (vmax - vmin) / (ng - 1)
         for i in 1:(nx + 1)
-            x_i = (i - 1) * mesh.dx
-            rho[i, j] = f0(x_i, alpha) / mean_f0(alpha)
+            x_i = mesh.x[i]
+            rho[i, j] = f0(x_i, alpha, k) / mean_f0(alpha)
             u[i, j] = alpha
             rho_tot[i] += rho[i, j] * mean_f0(alpha) / sf0
         end
