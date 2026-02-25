@@ -22,11 +22,14 @@ end
 
     eps = 1.0
     nx = 100
-    ng = 100
+    nv = 100
+    xmin, xmax = 0, 2π
+    vmin, vmax = -8.0, 8.0
+    k = 0.5
 
-    mesh = GaussHermiteMesh(nx, ng)
+    mesh = UniformMesh(xmin, xmax, nx, vmin, vmax, nv)
 
-    rho, u, rho_tot = compute_initial_condition(mesh)
+    rho, u, rho_tot = compute_initial_condition(mesh, k)
 
     @test true
 

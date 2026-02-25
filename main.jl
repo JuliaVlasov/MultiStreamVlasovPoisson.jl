@@ -8,32 +8,36 @@ function main(hermite_quad)
 
     eps = 1.0
     nx = 200
-    vmin, vmax = -4.0, 4.0
+    k = 0.5
+    xmin, xmax = 0.0, 2π / k
+    vmin, vmax = -6.0, 6.0
     ng = 200
 
     if hermite_quad
         mesh = GaussHermiteMesh(nx, ng)
     else
-        mesh = UniformMesh(nx, vmin, vmax, ng)
+        mesh = UniformMesh(xmin, xmax, nx, vmin, vmax, ng)
     end
 
-    rho, u, rho_tot = compute_initial_condition(mesh)
+    rho, u, rho_tot = compute_initial_condition(mesh, k)
 
     poisson = NonLinearPoissonSolver(eps, nx)
 
     phi = -log.(rho_tot)
+    display(plot(mesh.x, rho_tot))
 
     dt = mesh.dx
-    tfinal = 200 * dt  # Final time
+    tfinal = 100 * dt  # Final time
     time = [0.0]
 
-    elec_energy = [compute_elec_energy(phi, mesh, eps)]
+    @show elec_energy = [compute_elec_energy(phi, mesh, eps)]
 
     n = 0
     while n * dt <= tfinal
 
         # Update phi
         solve!(phi, poisson, rho_tot)
+        
 
         @threads for j in 1:ng
             update!(mesh, poisson, view(rho, :, j), view(u, :, j), phi, dt)
@@ -54,9 +58,9 @@ end
 @time time, elec_energy = main(false)
 plot(time, elec_energy, yaxis = :log, label = "uniform")
 
-@time time, elec_energy = main(true)
-plot!(time, elec_energy, yaxis = :log, label = "hermite")
+# @time time, elec_energy = main(true)
+# plot!(time, elec_energy, yaxis = :log, label = "hermite")
 
-line, ω, = fit_complex_frequency(time, elec_energy, use_peaks = 1:2)
-plot!(time, line; yaxis = :log)
-title!("ω = $(imag(ω))")
+# line, ω, = fit_complex_frequency(time, elec_energy, use_peaks = 1:2)
+# plot!(time, line; yaxis = :log)
+# title!("ω = $(imag(ω))")
