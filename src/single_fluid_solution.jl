@@ -203,11 +203,12 @@ end
 
 """
 $(SIGNATURES)
-
-Update one single fluid solution using cubic implicit semi-lagragian scheme
+Update one single fluid solution with :
+1) cubic interpolation 
+2) Semi Laggrangian scheme with trapeze rules for the integral of the force
 """
 
-#Compute the L_{i+k}(y) with k =-1,0,1,2
+#Compute the local lagrange polynomial at $x_i = (i-1)*dx$, L_{i+k}(y) with k =-1,0,1,2
 function lagrange_3(y::Float64,i::Int,k::Int,mesh::AbstractMesh)
     dx   = mesh.dx
     x_i  = (i-1) * dx
@@ -229,19 +230,10 @@ end
 function interpolate_cubic_on_mesh(x::Float64,mesh::AbstractMesh,u::AbstractVector)
     nx, dx = mesh.nx, mesh.dx
     ix  = mod1(Int(floor(x/dx) +1), nx+1)
-    il_mod = mod1(ix-1,nx+1)
-    ir_mod  = mod1(ix+1,nx+1)
-    irr_mod = mod1(ix+2,nx+1)
-    #println("x = $x,      ix = $ix ")
-    #println("******************************")
-    #println("-1   : ",lagrange_3(x,ix-1,-1,mesh))
-    #println("0    : ",lagrange_3(x,ix,-1,mesh))
-    #println("1    : ",lagrange_3(x,ix+1,1,mesh))
-    #println("2    : ",lagrange_3(x,ix+2,2,mesh))
-    #println("*******************************")
+    il_mod =  mod1(ix-1,  nx+1)
+    ir_mod  = mod1(ix+1, nx+1)
+    irr_mod = mod1(ix+2, nx+1)
     pi_u = u[il_mod] * lagrange_3(x,ix,-1,mesh) + u[ix] * lagrange_3(x,ix,0,mesh) + u[ir_mod] * lagrange_3(x,ix,1,mesh) + u[irr_mod] * lagrange_3(x,ix,2,mesh)
-    #pi_u = lagrange_3(x,ix,-1,mesh) + lagrange_3(x,ix,0,mesh) + lagrange_3(x,ix,1,mesh) + lagrange_3(x,ix,2,mesh)
-    #println("pi_u = $pi_u")
     return pi_u
 end
 
@@ -250,19 +242,15 @@ function compute_char_foot(x::Float64,dt::Float64,mesh::AbstractMesh,u::Abstract
     b = -0.5 * dt * dt * E
     d = 0.0
     L = mesh.L
-    x_feet = 0.0
-    f = 1.0
+    err = 1.0
     h = 1E-10
-    #println("compute_char_foot entrance")
-    #Use Fixed-Point methodod to compute the feet of the characteristic
-    while( abs(f) >1E-10 )
+    #Use Fixed-Point methodod to compute the feet of the characteristic : X(t-dt) = X(t) + d we search for d
+    while( abs(err) >1E-10 )
         p = interpolate_cubic_on_mesh(x+d,mesh,u)
         d = -dt *p + b
-        f = d + dt * p  - b
-        #println("f = $f")
+        err = d + dt * p  - b
     end
     x_feet = mod(x+d,L)
-    #println("x_feet = $x_feet")
     return x_feet
 end
 
@@ -275,22 +263,16 @@ function compute_x_feet_mesh!(dt::Float64,mesh::AbstractMesh,x_feet_mesh::Abstra
 end
 
 function compute_dx!(v::AbstractVector,mesh::AbstractMesh)
-    nx, dx = mesh.nx, mesh.dx
-    dx_v = zeros(nx+1)
-    for i in 1:(nx+1)
-        ir = mod1(i+1,nx+1)
-        dx_v[i] = (v[ir]-v[i])/dx
-    end
+    nx, dx ,kx = mesh.nx, mesh.dx, mesh.kx
+    dx_v=real(ifft(complex(0,1)*kx.*fft(v)));
     return dx_v
 end
 
 function update_rho_predictor_SL!(
         mesh::AbstractMesh, pred_rho::AbstractVector, rho_at_step_n::AbstractVector, u_at_step_n::AbstractVector,
 	dt::Float64, x_feet_mesh::AbstractVector)
-    #Prediction for rho
     nx = mesh.nx
     dx_u_n   = compute_dx!(u_at_step_n,mesh)
-    #display("dxu = $dx_u_n")
     for i in 1:(nx+1)
         dx_u_n_feet = interpolate_cubic_on_mesh(x_feet_mesh[i],mesh,dx_u_n)
         pred_rho[i] = interpolate_cubic_on_mesh(x_feet_mesh[i],mesh,rho_at_step_n) * exp(-dt * dx_u_n_feet)
