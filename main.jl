@@ -3,25 +3,32 @@ using LinearAlgebra
 using MultiStreamVlasovPoisson
 using Plots
 using .Threads
+using CSV
+using JLD2
+using JLD
+using FileIO
+using DataFrames
 
 " Vlasov-Poisson solver "
 
-global k = 0.5                #Wave number
+global k = 0.3                #Wave number
 global test_case::String      #test_case =  {landau_damping,two_streams,mono_kinetic}
 global T = 1.0                #Temperature
-global L  = 2π / k            #Size of the domain
+global L  = 20π #2π / k            #Size of the domain
 global eps = 1.0              #Debye length
 global solver::String         #SOLVER = {FV,SL} First Order Implicit AP Finite Volume Schem or Cubic Implicit Semi-Lagragian scheme
 
 function main(hermite_quad)
-    test_case = "landau_damping"
+    test_case = "two_streams"
     solver    = "SL"
-    nx, xmin, xmax = 128, 0.0, L
+    nx, xmin, xmax = 96, 0.0, L
     mesh_x = UniformMesh(xmin,xmax,nx)
-    nv, vmin, vmax = 256, -6.0, 6.0
+    nv, vmin, vmax = 256, -9.0, 9.0
     grid_v = UniformGrid(vmin, vmax, nv, T,mesh_x,test_case)
     rho, u, rho_tot = compute_initial_condition(mesh_x,grid_v,k,T,test_case)
     phi = zeros(nx+1)
+    u_before=zeros(nx+1,nv)
+    u_remapped=zeros(nx+1,nv)
     poisson!(phi, mesh_x, rho_tot, eps)
     E = -1.0*compute_dx!(phi,mesh_x)
     if(solver == "SL")
@@ -36,13 +43,14 @@ function main(hermite_quad)
     rho_at_step_n = zeros(nx + 1,nv)    
 
     #Set the CFL number and the final time
-    dt =  0.1*mesh_x.dx
-    tfinal = 40
+    dt =  0.1 #0.5*mesh_x.dx
+    tfinal = 400
     time = [0.0]
     remap_time = 0.0
 
     #Array of physical quantities 
     elec_energy     = [compute_elec_energy(phi, mesh_x, eps)]
+    display(elec_energy)
     mass            = [compute_total_mass(rho_tot,mesh_x)]
     momentum        = [compute_momentum(rho,u,mesh_x,grid_v)]
     total_energy    = [compute_elec_energy(phi, mesh_x, eps) + compute_kinetic_energy(rho,u,mesh_x,grid_v)]
@@ -61,7 +69,9 @@ function main(hermite_quad)
         if(norm_dx_u > threshold )
             println("Remapping f at time = $(n*dt),  threshold = $threshold, dxu = $norm_dx_u")
             remap_time = n * dt
+	    u_before=u
             rho, u = remap_f_on_uniform_grid(mesh_x,grid_v,rho,u)
+	    u_remapped=u
         end
         
         if(solver=="FV")
@@ -121,7 +131,7 @@ function main(hermite_quad)
         push!(time, n * dt)
         println("iteration: $n , time = $(n * dt), elec energy = $(last(elec_energy)), mass = $(last(mass)),   ||dxU|| = $norm_dx_u")
         #Movie of the the solution
-        per = 100 #Plot every 100 iterations
+        per = 1000 #Plot every 100 iterations
         if(mod(n,per) == 1)
             f_on_grid =  interpolate_f_on_grid(mesh_x,grid_v,rho,u)
             X = []
@@ -136,13 +146,13 @@ function main(hermite_quad)
                     #ZZ = push!(ZZ,f_on_grid[i,j]-exp(-0.5*grid_v.v[j]*grid_v.v[j]/T)/sqrt(2*π*T))
                 end
             end
-            p = plot(X,Y,Z,st = [:surface],camera = (0,90),xlabel = "x", ylabel="v",)
-            plot!(p; ylims=(-6.,6.))
-            frame(anim)
+ #           p = plot(X,Y,Z,st = [:surface],camera = (0,90),xlabel = "x", ylabel="v",)
+ #           plot!(p; ylims=(-6.,6.))
+ #           frame(anim)
         end
 
     end
-    gif(anim, "fig/mono_kinetic_SL+REMP.gif", fps = 15)
+#    gif(anim, "fig/mono_kinetic_SL+REMP.gif", fps = 15)
     
 
     #Plot the final distribution function
@@ -162,11 +172,20 @@ function main(hermite_quad)
     plot_f = plot(X,Y,Z,st = [:surface],camera = (0,90),xlabel = "x", ylabel="v")
     plot_df = plot(X,Y,ZZ,st = [:surface],camera = (0,90),xlabel = "x", ylabel="v")
 
-    return time, elec_energy, mass, momentum, total_energy, grid_v, mesh_x, u, rho_tot, plot_f, plot_df, phi, E
+    return time, elec_energy, mass, momentum, total_energy, grid_v, mesh_x, u, u_before, u_remapped, rho_tot, plot_f, plot_df, phi, E, X, Y, Z, ZZ
+#    return dt, elec_energy, mass, momentum, total_energy, grid_v, mesh_x, u, rho_tot, plot_f, plot_df, phi, E
 
 end
-@time time, elec_energy, mass, momentum, total_energy, grid_v, mesh_x, u, rho_tot, plot_f, plot_df,phi,E = main(true)
-plot(time,log.(elec_energy))
+@time t, elec_energy, mass, momentum, total_energy, grid_v, mesh_x, u, u_before, u_remapped, rho_tot, plot_f, plot_df,phi,E, X, Y, Z, ZZ = main(true)
+#@time dt, elec_energy, mass, momentum, total_energy, grid_v, mesh_x, u, rho_tot, plot_f, plot_df,phi,E = main(true)
+#aa=size(elec_energy)
+#tt=dt*[(i) for i=1:aa[1]]
+
+
+CSV.write("frame_elec.csv",DataFrame(time=t,elec=elec_energy))
+CSV.write("frame_f.csv",DataFrame(x=X,v=Y,f=Z,df=ZZ))
+
+plot(t,log.(elec_energy))
 
 #plot(mesh_x.x,u[:,grid_v.nv/2-10:grid_v.nv/2+10], legend = false)
 

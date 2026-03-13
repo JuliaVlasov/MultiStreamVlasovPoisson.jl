@@ -18,7 +18,7 @@ function u_ini(x::Float64,k::Float64,test_case::String)::Float64
     if(test_case== "landau_damping")
         u = 0
     elseif(test_case == "two_streams")
-        u = 2.4
+        u = 4.5 #2.4
     elseif(test_case =="mono_kinetic")
         u = a*cos(k*x)
     else
@@ -48,12 +48,13 @@ Initial condition for the Vlasov-equation
     3) Monokinetic  : f_0(x,v) = M_T(v-u0(x))
 """
 function f0(x::Float64, v::Float64, k::Float64, T::Float64, u0::Float64,test_case::String)::Float64
-    a = 0.01
+    a = 0.04
     f0 = 0.0
     if(test_case == "mono_kinetic")
         f0 = (1.0 / sqrt(2π*T)) * exp(-0.5 * (v-u0) * (v-u0)/T)
     else
-        f0 = (1.0 / sqrt(2π*T)) *   ( 0.5 * exp(-0.5 * (v-u0) * (v-u0)/T) + 0.5* exp(-0.5 * (v+u0) * (v+u0)/T) ) * (1 + a * cos(k * x))
+#        f0 = (1.0 / sqrt(2π*T)) *   ( 0.5 * exp(-0.5 * (v-u0) * (v-u0)/T) + 0.5* exp(-0.5 * (v+u0) * (v+u0)/T) ) * (1 + a * cos(k * x))
+        f0 = (0.1 / sqrt(2π*T)) *   ( 9 * exp(-0.5 * v * v) + 2 * exp(-2 * (v-u0) * (v-u0)) ) * (1 + a * cos(k * x))
     end
     return f0
 end
