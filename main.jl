@@ -120,7 +120,7 @@ function main(hermite_quad)
         #Make the animation : evolution of the surface plot of the distribution function
         #Plot every "per" 
         #Comment this part if you do not want the animation :  it is the time consuming part of the code.
-        per = 1000 
+        per = 50 
         if(mod(n,per) == 1)
             f_on_grid =  interpolate_f_on_grid(mesh_x,grid_v,rho,u)
             X = []
