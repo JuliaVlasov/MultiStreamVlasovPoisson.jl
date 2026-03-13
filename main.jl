@@ -16,7 +16,7 @@ function main(hermite_quad)
     solver    = "SL"
     nx, xmin, xmax = 128, 0.0, L
     mesh_x = UniformMesh(xmin,xmax,nx)
-    nv, vmin, vmax = 300, -6.0, 6.0
+    nv, vmin, vmax = 128, -6.0, 6.0
     grid_v = UniformGrid(vmin, vmax, nv, T,mesh_x,test_case)
     rho, u, rho_tot = compute_initial_condition(mesh_x,grid_v,k,T,test_case)
     phi = zeros(nx+1)
@@ -34,7 +34,7 @@ function main(hermite_quad)
 
     #Set the CFL number and the final time
     dt =  0.1 #1.0*mesh_x.dx
-    tfinal = 200
+    tfinal = 100
     time = [0.0]
     remap_time = 0.0
 
@@ -120,7 +120,7 @@ function main(hermite_quad)
         #Make the animation : evolution of the surface plot of the distribution function
         #Plot every "per" 
         #Comment this part if you do not want the animation :  it is the time consuming part of the code.
-        per = 20 
+        per = 1000 
         if(mod(n,per) == 1)
             f_on_grid =  interpolate_f_on_grid(mesh_x,grid_v,rho,u)
             X = []
@@ -139,7 +139,7 @@ function main(hermite_quad)
         end
 
     end
-    gif(anim, "fig/two_streams_SL+REMAP.gif", fps = 15)
+    gif(anim, "fig/$(test_case)_$(solver).gif", fps = 15)
     #Plot the final distribution function
     f_on_grid =  interpolate_f_on_grid(mesh_x,grid_v,rho,u)
     X = []
