@@ -1,5 +1,5 @@
 using Aqua
-using MultiStreamVlasovPoisson
+using MultiPhaseVlasov
 using Test
 
 @testset "GaussHermite mesh" begin
@@ -48,5 +48,5 @@ end
 
 
 @testset "Aqua.jl" begin
-    Aqua.test_all(MultiStreamVlasovPoisson)
+    Aqua.test_all(MultiPhaseVlasov)
 end
