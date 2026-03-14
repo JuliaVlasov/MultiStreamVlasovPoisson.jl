@@ -1,7 +1,9 @@
 name = "MultiStreamVlasovPoisson"
 uuid = "abfc845c-36a9-4d8b-9974-a67c5cbc791f"
-authors = ["Mehdi Badsi <mehdi.badsi@univ-nantes.fr>", "Pierre Navaro <pierre.navaro@math.cnrs.fr>"]
 version = "0.1.0"
+authors = ["Mehdi Badsi <mehdi.badsi@univ-nantes.fr>", 
+           "Pierre Navaro <pierre.navaro@math.cnrs.fr>",
+           "Nicolas Crouseilles <nicolas.crouseilles@inria.fr>"]
 
 [deps]
 DispersionRelations = "78f632dc-6214-4aca-89df-9f86f5ac7c9e"
@@ -11,7 +13,6 @@ FastGaussQuadrature = "442a2c76-b920-505d-bb47-c5924d526838"
 JLD = "4138dd39-2aa7-5051-a626-17a0bb65d9c8"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 Sobol = "ed01d8cd-4d21-5b2a-85b4-cc3bdc58bad4"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
