@@ -1,6 +1,6 @@
-# MultiStreamVlasovPoisson.jl
+# MultiPhaseVlasov.jl
 
-Documentation for MultiStreamVlasovPoisson.jl
+Documentation for MultiPhaseVlasov.jl
 
 ## Sources
 
@@ -24,7 +24,7 @@ julia> include("main.jl") # Run the example
 ## Example
 
 ```@example main
-using MultiStreamVlasovPoisson
+using MultiPhaseVlasov
 using Plots
 
 eps = 1.0
@@ -46,6 +46,6 @@ plot(mesh.x, rho_tot)
 ## Functions
 
 ```@autodocs
-Modules = [MultiStreamVlasovPoisson]
+Modules = [MultiPhaseVlasov]
 Order   = [:type, :function]
 ```

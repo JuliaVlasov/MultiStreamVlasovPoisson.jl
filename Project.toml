@@ -1,4 +1,4 @@
-name = "MultiStreamVlasovPoisson"
+name = "MultiPhaseVlasov"
 uuid = "abfc845c-36a9-4d8b-9974-a67c5cbc791f"
 version = "0.1.0"
 authors = ["Mehdi Badsi <mehdi.badsi@univ-nantes.fr>", 

@@ -1,12 +1,12 @@
 using Documenter
-using MultiStreamVlasovPoisson
+using MultiPhaseVlasov
 
 ENV["GKSwstype"] = "100"
 
 makedocs(
-    sitename = "MultiStreamVlasovPoisson.jl",
+    sitename = "MultiPhaseVlasov.jl",
     authors = "Mehdi Badsi and Pierre Navaro",
-    modules = [MultiStreamVlasovPoisson],
+    modules = [MultiPhaseVlasov],
     format = Documenter.HTML(;
         prettyurls = get(ENV, "CI", nothing) == "true",
         mathengine = MathJax(

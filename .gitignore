@@ -3,3 +3,4 @@ main
 *.swp
 /.ipynb_checkpoints
 Manifest.toml
+/.vscode
