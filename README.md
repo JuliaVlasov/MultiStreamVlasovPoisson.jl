@@ -5,14 +5,14 @@
 | [![][docs-stable-img]][docs-stable-url] [![][docs-dev-img]][docs-dev-url] | [![][GHA-img]][GHA-url] [![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl) |
 
 [docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg
-[docs-dev-url]: https://juliavlasov.github.io/MultiStreamVlasovPoisson.jl/dev
+[docs-dev-url]: https://juliavlasov.github.io/MultiPhaseVlasov.jl/dev
 
 [docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg
-[docs-stable-url]: https://juliavlasov.github.io/MultiStreamVlasovPoisson.jl/stable
+[docs-stable-url]: https://juliavlasov.github.io/MultiPhaseVlasov.jl/stable
 
 ```
-git clone https://github.com/JuliaVlasov/MultiStreamVlasovPoisson.jl.git
-cd MultiStreamVlasovPoisson.jl
+git clone https://github.com/JuliaVlasov/MultiPhaseVlasov.jl.git
+cd MultiPhaseVlasov.jl
 ```
 
 ```
