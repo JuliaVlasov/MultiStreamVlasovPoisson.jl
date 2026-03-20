@@ -1,22 +1,20 @@
 using DispersionRelations
 using LinearAlgebra
-using MultiStreamVlasovPoisson
+using MultiPhaseVlasov
 using Plots
 using .Threads
 using CSV
 using JLD2
-using JLD
-using FileIO
 using DataFrames
 
 " Vlasov-Poisson solver "
 
-global k = 0.3                #Wave number
-global test_case::String      #test_case =  {landau_damping,two_streams,mono_kinetic}
-global T = 1.0                #Temperature
-global L = 20π #2π / k            #Size of the domain
-global eps = 1.0              #Debye length
-global solver::String         #SOLVER = {FV,SL} First Order Implicit AP Finite Volume Schem or Cubic Implicit Semi-Lagragian scheme
+const k = 0.3                #Wave number
+const test_case::String      #test_case =  {landau_damping,two_streams,mono_kinetic}
+const T = 1.0                #Temperature
+const L = 20π #2π / k            #Size of the domain
+const eps = 1.0              #Debye length
+const solver::String         #SOLVER = {FV,SL} First Order Implicit AP Finite Volume Schem or Cubic Implicit Semi-Lagragian scheme
 
 function main(hermite_quad)
     test_case = "two_streams"
@@ -24,7 +22,7 @@ function main(hermite_quad)
     nx, xmin, xmax = 96, 0.0, L
     mesh_x = UniformMesh(xmin, xmax, nx)
     nv, vmin, vmax = 256, -9.0, 9.0
-    grid_v = UniformGrid(vmin, vmax, nv, T, mesh_x, test_case)
+    grid_v = MonteCarloGrid(vmin, vmax, nv, T, mesh_x, test_case)
     rho, u, rho_tot = compute_initial_condition(mesh_x, grid_v, k, T, test_case)
     phi = zeros(nx + 1)
     u_before = zeros(nx + 1, nv)

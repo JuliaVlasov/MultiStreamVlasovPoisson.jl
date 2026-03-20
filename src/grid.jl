@@ -74,11 +74,11 @@ end
 function sample_maxwellian(T::Float64, mean::Float64, nb_sample::Int64)
 
     v = Float64[]
-    rand_1 = rand(1, nb_sample)
-    rand_2 = rand(1, nb_sample)
+    rand_1 = rand(nb_sample)
+    rand_2 = rand(nb_sample)
     for i in 1:nb_sample
         r = sqrt(T) * sqrt(-2 * log(rand_1[i])) + mean
-        t = 2 * π * rand_2[i]
+        t = 2π * rand_2[i]
         push!(v, r * cos(t))
     end
     return v
@@ -103,6 +103,7 @@ function landau(nbpart::Int64)
 end
 
 export MonteCarloGrid
+
 struct MonteCarloGrid <: AbstractGrid
     nv::Int
     v::Vector{Float64}

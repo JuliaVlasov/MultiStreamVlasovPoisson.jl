@@ -1,4 +1,4 @@
-# Vlasov-Poisson with Multistream numerical method
+# Vlasov-Poisson with Multiphase numerical method
 
 | **Documentation**                                                               | **Build Status**                                                                                |
 |:-------------------------------------------------------------------------------:|:-----------------------------------------------------------------------------------------------:|
@@ -9,6 +9,9 @@
 
 [docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg
 [docs-stable-url]: https://juliavlasov.github.io/MultiPhaseVlasov.jl/stable
+
+[GHA-img]: https://github.com/juliavlasov/MultiPhaseVlasov.jl/workflows/CI/badge.svg
+[GHA-url]: https://github.com/juliavlasov/MultiPhaseVlasov.jl/actions?query=workflow%3ACI+branch%3Amain
 
 ```
 git clone https://github.com/JuliaVlasov/MultiPhaseVlasov.jl.git
@@ -22,6 +25,6 @@ julia> Pkg.update()
 julia> Pkg.add("Plots")
 julia> Pkg.activate(pwd())
 julia> Pkg.instantiate()
-julia> include("main.jl")
+julia> include("examples/vlasov-poisson.jl")
 ```
 

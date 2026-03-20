@@ -1,6 +1,5 @@
 export interpolate_f_on_grid
 export remap_f_on_uniform_grid
-using .Threads
 
 function interpolate_f_on_grid(mesh_x::AbstractMesh, grid_v::UniformGrid, rho::Matrix{Float64}, u::Matrix{Float64})
     nx = mesh_x.nx
@@ -17,6 +16,8 @@ function interpolate_f_on_grid(mesh_x::AbstractMesh, grid_v::UniformGrid, rho::M
     end
     return f_grid
 end
+
+
 #This works only for uniform grid for the moment
 function remap_f_on_uniform_grid(mesh_x::AbstractMesh, grid_v::UniformGrid, rho::Matrix{Float64}, u::Matrix{Float64})
     nv = grid_v.nv
