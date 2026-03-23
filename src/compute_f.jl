@@ -1,25 +1,24 @@
 export interpolate_f_on_grid
-export remap_f_on_uniform_grid
 
 function interpolate_f_on_grid(mesh_x::AbstractMesh, grid_v::UniformGrid, rho::Matrix{Float64}, u::Matrix{Float64})
+
     nx = mesh_x.nx
     nv = grid_v.nv
     dv = grid_v.dv
     f_grid = zeros(nx + 1, nv)
-    for i in 1:(nx + 1)
-        for j in 1:nv
-            for l in 1:nv
-                v_j = grid_v.v[j]
-                f_grid[i, j] += grid_v.w[l] * rho[i, l] * Spline(v_j - u[i, l], dv) ##Naive approchae we do not localize v_j-u_{i,l} to optimize later
-            end
-        end
+    for i in 1:(nx + 1), j in 1:nv, l in 1:nv
+        v_j = grid_v.v[j]
+        f_grid[i, j] += grid_v.w[l] * rho[i, l] * Spline(v_j - u[i, l], dv) ##Naive approchae we do not localize v_j-u_{i,l} to optimize later
     end
+
     return f_grid
+
 end
 
+export remap_f!
 
 #This works only for uniform grid for the moment
-function remap_f_on_uniform_grid(mesh_x::AbstractMesh, grid_v::UniformGrid, rho::Matrix{Float64}, u::Matrix{Float64})
+function remap_f!(mesh_x::AbstractMesh, grid_v::UniformGrid, rho::Matrix{Float64}, u::Matrix{Float64})
     nv = grid_v.nv
     dv = grid_v.dv
     nx = mesh_x.nx
@@ -27,12 +26,11 @@ function remap_f_on_uniform_grid(mesh_x::AbstractMesh, grid_v::UniformGrid, rho:
     new_weights = zeros(nv)
     new_rho = zeros(nx + 1, nv)
     new_u = zeros(nx + 1, nv)
+
     #Reinitiaize rho and u on uniform grid
-    for l in 1:nv
-        for i in 1:(nx + 1)
-            new_u[i, l] = grid_v.v[l]
-            new_rho[i, l] = evaluate_f_on(i, l, grid_v, rho, u) / evaluate_mean_f_on(l, mesh_x, grid_v, rho, u)
-        end
+    for l in 1:nv, i in 1:(nx + 1)
+        new_u[i, l] = grid_v.v[l]
+        new_rho[i, l] = evaluate_f_on(i, l, grid_v, rho, u) / evaluate_mean_f_on(l, mesh_x, grid_v, rho, u)
     end
     #Compute the new weights
     for l in 1:nv
@@ -44,8 +42,10 @@ function remap_f_on_uniform_grid(mesh_x::AbstractMesh, grid_v::UniformGrid, rho:
         new_weights[l] *= (1.0 / new_SF)
         grid_v.w[l] = new_weights[l]
     end
-    return new_rho, new_u
+    rho .= new_rho
+    return u .= new_u
 end
+
 #Evaluate f on (x_i,v_j)
 function evaluate_f_on(i::Int, j::Int, grid_v::UniformGrid, rho::Matrix{Float64}, u::Matrix{Float64})
     nv = grid_v.nv
@@ -57,6 +57,7 @@ function evaluate_f_on(i::Int, j::Int, grid_v::UniformGrid, rho::Matrix{Float64}
     end
     return f
 end
+
 #Compute mean_f at v_j on the torus of size L = xmax - xmin
 function evaluate_mean_f_on(j::Int, mesh_x::AbstractMesh, grid_v::UniformGrid, rho::Matrix{Float64}, u::Matrix{Float64})
     mean_f = 0.0
@@ -72,7 +73,6 @@ function evaluate_mean_f_on(j::Int, mesh_x::AbstractMesh, grid_v::UniformGrid, r
     end
     return mean_f
 end
-
 
 #Spline of order 3 supp S_3 = [-2 h , 2 h]
 function Spline(x::Float64, h::Float64)

@@ -13,7 +13,7 @@ function compute_initial_condition(test_case::InitialCondition, mesh_x::Abstract
         alpha = grid_v.v[j]
         for i in 1:(nx + 1)
             x_i = mesh_x.x[i]
-            rho[i, j] = f0(test_case, x_i, alpha ) / mean_f0(test_case, mesh_x, alpha)
+            rho[i, j] = f0(test_case, x_i, alpha) / mean_f0(test_case, mesh_x, alpha)
             u[i, j] = alpha
             rho_tot[i] += grid_v.w[j] * rho[i, j]
         end

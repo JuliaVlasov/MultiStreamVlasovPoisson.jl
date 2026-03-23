@@ -19,4 +19,3 @@ function mean_f0(test_case::InitialCondition, mesh_x::AbstractMesh, v::Float64):
     end
     return mf0
 end
-

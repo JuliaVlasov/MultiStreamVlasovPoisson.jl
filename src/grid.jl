@@ -4,8 +4,14 @@ using FastGaussQuadrature
 abstract type AbstractGrid end
 
 export GaussHermiteGrid
-##Generate the grid in velocity to approach the measure dmu_0 by an empirical measure in three different ways :
-# 1) Gauss-Hermite : Points in velocity are using Gauss-Hermite quadrature
+
+
+"""
+$(TYPEDEF)
+
+Generate the grid in velocity to approach the measure dmu_0 by an empirical measure
+With Gauss-Hermite, points in velocity are using Gauss-Hermite quadrature
+"""
 struct GaussHermiteGrid <: AbstractGrid
     nv::Int
     v::Vector{Float64}
@@ -44,9 +50,8 @@ struct UniformGrid <: AbstractGrid
     v::Vector{Float64}
     dv::Float64
     w::Vector{Float64}
-    T::Float64
 
-    function UniformGrid(vmin, vmax, nv, T, mesh_x, test_case)
+    function UniformGrid(vmin, vmax, nv, mesh_x, test_case)
 
         sf0 = 0.0
         dv = Float64
@@ -59,12 +64,16 @@ struct UniformGrid <: AbstractGrid
         for i in 1:nv
             w[i] = mean_f0(test_case, mesh_x, v[i]) * dv / sf0
         end
-        return new(nv, v, dv, w, T)
+        return new(nv, v, dv, w)
     end
 
 end
 
-#Function to construct the Monte Carlo grid based on the inverse of the cumulative distribution function
+"""
+$(SIGNATURES)
+
+Function to construct the Monte Carlo grid based on the inverse of the cumulative distribution function
+"""
 function newton(r)
     kx, alpha = 0.5, 0.001
     x0, x1 = 0.0, 1.0
@@ -78,18 +87,23 @@ function newton(r)
 end
 
 
-#Function to sample a Maxwellian with mean and temperature given
-function sample_maxwellian(T::Float64, mean::Float64, nb_sample::Int64)
+"""
+$(SIGNATURES)
 
+Function to sample a Maxwellian with mean and temperature given
+"""
+function sample_maxwellian(vth, v0, nb_sample::Int64)
+
+    s = SobolSeq(2)
     v = Float64[]
-    rand_1 = rand(nb_sample)
-    rand_2 = rand(nb_sample)
     for i in 1:nb_sample
-        r = sqrt(T) * sqrt(-2 * log(rand_1[i])) + mean
-        t = 2π * rand_2[i]
+        r1, r2 = next!(s)
+        r = sqrt(vth) * sqrt(-2 * log(r1)) + v0
+        t = 2π * r2
         push!(v, r * cos(t))
     end
     return v
+
 end
 
 function landau(nbpart::Int64)
@@ -100,7 +114,6 @@ function landau(nbpart::Int64)
     s = SobolSeq(2)
 
     for k in 0:(nbpart - 1)
-
         a = sqrt(-2 * log((k + 0.5) / nbpart))
         r1, r2 = next!(s)
         θ = r1 * 2π
@@ -113,21 +126,30 @@ end
 export MonteCarloGrid
 
 struct MonteCarloGrid <: AbstractGrid
+
     nv::Int
     v::Vector{Float64}
     w::Vector{Float64}
-    u0::Float64
-    function MonteCarloGrid(nv, T, u0, mesh_x, test_case)
-        v = sample_maxwellian(T, u0, nv)
-        v = sort(v)
+
+    function MonteCarloGrid(vmin, vmax, nv, mesh_x, test_case)
+
+        vth = test_case.vth
+        v0 = test_case.v0
+
+        v = sample_maxwellian(vth, v0, nv)
+        sort!(v)
+
         w = zeros(nv)
         sf0 = 0.0
         for i in 1:(nv - 1)
-            sf0 += mean_f0(v[i], T, mesh_x, test_case) * (v[i + 1] - v[i])
+            sf0 += mean_f0(test_case, mesh_x, v[i]) * (v[i + 1] - v[i])
         end
+
         for i in 1:(nv - 1)
-            w[i] = mean_f0(v[i], T, mesh_x, test_case) * (v[i + 1] - v[i]) / sf0
+            w[i] = mean_f0(test_case, mesh_x, v[i]) * (v[i + 1] - v[i]) / sf0
         end
-        return new(nv, v, w, u0)
+
+        return new(nv, v, w)
+
     end
 end

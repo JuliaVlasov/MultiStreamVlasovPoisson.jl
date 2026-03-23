@@ -176,4 +176,3 @@ end
 @time t, elec_energy, mass, momentum, total_energy, grid_v, mesh_x, u, u_before, u_remapped, rho_tot, plot_f, plot_df, phi, E, X, Y, Z, ZZ = main(true)
 
 plot(t, log.(elec_energy))
-
