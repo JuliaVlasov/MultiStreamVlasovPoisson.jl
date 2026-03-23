@@ -25,6 +25,6 @@ julia> Pkg.update()
 julia> Pkg.add("Plots")
 julia> Pkg.activate(pwd())
 julia> Pkg.instantiate()
-julia> include("examples/vlasov-poisson.jl")
+julia> include("examples/landau_damping.jl")
 ```
 
