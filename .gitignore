@@ -4,3 +4,5 @@ main
 /.ipynb_checkpoints
 Manifest.toml
 /.vscode
+/examples/.ipynb_checkpoints
+*.ipynb

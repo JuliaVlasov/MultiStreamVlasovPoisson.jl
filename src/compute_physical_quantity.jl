@@ -8,12 +8,12 @@ $(SIGNATURES)
     
 Compute the electric energy.
 """
-function compute_elec_energy(phi::Vector{Float64}, mesh::AbstractMesh, eps)::Float64
+function compute_elec_energy(phi::Vector{Float64}, mesh::AbstractMesh; ϵ = 1.0)::Float64
     e = 0.0
     nx, dx = mesh.nx, mesh.dx
     for i in eachindex(phi)
         ir = mod1(i + 1, nx + 1)
-        e += 0.5 * eps * eps * dx * (phi[ir] - phi[i])^2 / (dx * dx)
+        e += 0.5 * ϵ * ϵ * dx * (phi[ir] - phi[i])^2 / (dx * dx)
     end
     return sqrt(e)
 end
