@@ -3,13 +3,18 @@ using LinearAlgebra
 using MultiPhaseVlasov
 using Plots
 using .Threads
+using CSV
+using JLD2
+using DataFrames
 
 " Vlasov-Poisson solver "
 
 const k = 0.3                #Wave number
+const test_case::String      #test_case =  {landau_damping,two_streams,mono_kinetic}
 const T = 1.0                #Temperature
 const L = 20π #2π / k            #Size of the domain
 const eps = 1.0              #Debye length
+const solver::String         #SOLVER = {FV,SL} First Order Implicit AP Finite Volume Schem or Cubic Implicit Semi-Lagragian scheme
 
 function main(hermite_quad)
     test_case = "two_streams"
@@ -17,7 +22,7 @@ function main(hermite_quad)
     nx, xmin, xmax = 96, 0.0, L
     mesh_x = UniformMesh(xmin, xmax, nx)
     nv, vmin, vmax = 256, -9.0, 9.0
-    grid_v = MonteCarloGrid(vmin, vmax, nv, T, mesh_x, test_case)
+    grid_v = UniformGrid(vmin, vmax, nv, T, mesh_x, test_case)
     rho, u, rho_tot = compute_initial_condition(mesh_x, grid_v, k, T, test_case)
     phi = zeros(nx + 1)
     u_before = zeros(nx + 1, nv)
@@ -174,5 +179,37 @@ function main(hermite_quad)
 
 end
 @time t, elec_energy, mass, momentum, total_energy, grid_v, mesh_x, u, u_before, u_remapped, rho_tot, plot_f, plot_df, phi, E, X, Y, Z, ZZ = main(true)
+#@time dt, elec_energy, mass, momentum, total_energy, grid_v, mesh_x, u, rho_tot, plot_f, plot_df,phi,E = main(true)
+#aa=size(elec_energy)
+#tt=dt*[(i) for i=1:aa[1]]
+
+
+CSV.write("frame_elec.csv", DataFrame(time = t, elec = elec_energy))
+CSV.write("frame_f.csv", DataFrame(x = X, v = Y, f = Z, df = ZZ))
 
 plot(t, log.(elec_energy))
+
+#plot(mesh_x.x,u[:,grid_v.nv/2-10:grid_v.nv/2+10], legend = false)
+
+#p_1 = plot(time, elec_energy, yaxis = :log, label = "UniformGrid")
+#p_2 = plot(X,Y,Z,st = [:surface], label="f")
+#plot!(p_2,camera = (0,90))
+# @time t, elec_energy = main(true)
+#plot!(t, elec_energy, yaxis = :log, label = "hermite")
+
+# line, ω, = fit_complex_frequency(t, elec_energy, use_peaks = 1:2)
+# plot!(time, line; yaxis = :log)
+# title!("ω = $(imag(ω))")
+
+
+#for k=0.4, we have from Eric's book (a=0.001)
+#E_k(t)=0.002.*0.424666.*exp.(-0.0661.*t).*abs.(cos.(1.285.*t.−0.3357725)))
+#plot(t,log.(elec_energy))
+#plot!(t,log.(0.002.*0.42466.*exp.(-0.0661.*t).*abs.(cos.(1.285.*t.-0.33577))))
+#plot!(t,log.(0.0075.*0.42466.*exp.(-0.0661.*t).*abs.(cos.(1.285.*t.-0.33577))))   for a=0.001
+
+#for k=0.5, we have from Eric's book
+#E_k(t)=4.*a.*0.3677.*exp.(-0.1533.*t).*sqrt.(2pi).*abs.(cos(1.4156.*t-0.536245))
+#plot(t,log.(elec_energy))
+#plot!(t,log.(0.01.*exp.(-0.1533.*t).*sqrt(2*pi).*abs.(cos.(1.4156.*t.-0.536245))))           for a=0.01
+#plot!(t,log.(0.0025.*0.3677.*exp.(-0.1533.*t).*sqrt(2*pi).*abs.(cos.(1.4156.*t.-0.536245))))  for a=0.001
