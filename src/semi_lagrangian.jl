@@ -102,10 +102,10 @@ function update_rho_corrector!(
     dx_u_n = compute_dx!(u_at_step_n, mesh)
     dx_u_n_plus = compute_dx!(u_at_step_n_plus, mesh)
 
-    ρ = cubic_interp(mesh.x, rho_at_step_n, x_feet_mesh, bc = PeriodicBC(endpoint=:exclusive, period = mesh.L) ) 
+    cubic_interp!(rho, mesh.x, rho_at_step_n, x_feet_mesh, bc = PeriodicBC(endpoint=:exclusive, period = mesh.L) ) 
     du_dx = cubic_interp(mesh.x, dx_u_n, x_feet_mesh, bc = PeriodicBC(endpoint=:exclusive, period = mesh.L) ) 
     du_dx .+= dx_u_n_plus
-    rho .= ρ .* exp.(-0.5 * dt .* du_dx)
+    rho .*= exp.(-0.5 * dt .* du_dx)
 
 end
 
@@ -121,13 +121,14 @@ function compute_x_feet_mesh!(dt::Float64, mesh::AbstractMesh, x_feet_mesh::Abst
 
     L = mesh.L
     h = 1e-10
+    itp = cubic_interp(mesh.x, u, bc = PeriodicBC(endpoint=:exclusive, period = mesh.L))
     for i in eachindex(e)
         d = 0.0
         err = 1.0
         x = mesh.x[i]
         b = -0.5 * dt * dt * e[i]
         while abs(err) > h
-            p = cubic_interp(mesh.x, u, x + d, bc = PeriodicBC(endpoint=:exclusive, period = mesh.L) )
+            p = itp(x + d)
             d = -dt * p + b
             err = d + dt * p - b
         end

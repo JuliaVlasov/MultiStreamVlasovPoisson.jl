@@ -33,6 +33,7 @@ function main(; tfinal = 10)
     x_feet_mesh = [zeros(nx + 1) for i in 1:nv]
     rho_pred = [zeros(nx + 1) for i in 1:nv]
     phi_pred = zeros(nx + 1)
+    e_pred = zeros(nx + 1)
 
     #Initialize the streams
     u_at_step_n = [zeros(nx + 1) for i in 1:nv]
@@ -67,14 +68,12 @@ function main(; tfinal = 10)
 
         end
 
-        rho_at_step_n = deepcopy(rho)
-        u_at_step_n = deepcopy(u)
 
         for j in 1:nv
-            @timeit to "feet" compute_x_feet_mesh!(dt, mesh_x, x_feet_mesh[j], u_at_step_n[j], e)
+            @timeit to "feet" compute_x_feet_mesh!(dt, mesh_x, x_feet_mesh[j], u[j], e)
             @timeit to "predictor" update_rho_predictor!(
                 solver,
-                mesh_x, rho_pred[j], rho_at_step_n[j], u_at_step_n[j], dt,
+                mesh_x, rho_pred[j], rho[j], u[j], dt,
                 x_feet_mesh[j]
             )
         end
@@ -82,7 +81,11 @@ function main(; tfinal = 10)
         @timeit to "compute rho" compute_rho_total!(rho_tot, grid_v, rho_pred)
         #Solve Poisson
         @timeit to "compute phi" poisson!(phi_pred, mesh_x, rho_tot)
-        e_pred = -1.0 .* compute_dx!(phi_pred, mesh_x)
+        e_pred .= -1.0 .* compute_dx!(phi_pred, mesh_x)
+
+        rho_at_step_n .= deepcopy(rho)
+        u_at_step_n .= deepcopy(u)
+
         for j in 1:nv
             @timeit to "update u" update_u!(solver, mesh_x, e, e_pred, u[j], u_at_step_n[j], dt, x_feet_mesh[j])
             @timeit to "corrector" update_rho_corrector!(solver, mesh_x, rho[j], rho_at_step_n[j], 
@@ -92,7 +95,7 @@ function main(; tfinal = 10)
         @timeit to "compute rho" compute_rho_total!(rho_tot, grid_v, rho)
         #Solve Poisson
         @timeit to "compute phi" poisson!(phi, mesh_x, rho_tot)
-        e = -1.0 * compute_dx!(phi, mesh_x)
+        e .= -1.0 * compute_dx!(phi, mesh_x)
 
         @timeit to "compute rho" compute_rho_total!(rho_tot, grid_v, rho)
 
