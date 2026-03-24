@@ -9,7 +9,7 @@ using TimerOutputs
 
 const to = TimerOutput()
 
-function main(; tfinal = 100)
+function main(; tfinal = 10)
 
     test_case = LandauDamping()
     solver = SemiLagrangian()
@@ -27,17 +27,16 @@ function main(; tfinal = 100)
     u_before = zeros(nx + 1, nv)
     u_remapped = zeros(nx + 1, nv)
     poisson!(phi, mesh_x, rho_tot)
-    E = -1.0 * compute_dx!(phi, mesh_x)
-    plot(mesh_x.x, E)
+    e = -1.0 * compute_dx!(phi, mesh_x)
 
     # +
-    x_feet_mesh = zeros(nx + 1, nv)
-    rho_pred = zeros(nx + 1, nv)
+    x_feet_mesh = [zeros(nx + 1) for i in 1:nv]
+    rho_pred = [zeros(nx + 1) for i in 1:nv]
     phi_pred = zeros(nx + 1)
 
     #Initialize the streams
-    u_at_step_n = zeros(nx + 1, nv)
-    rho_at_step_n = zeros(nx + 1, nv)
+    u_at_step_n = [zeros(nx + 1) for i in 1:nv]
+    rho_at_step_n = [zeros(nx + 1) for i in 1:nv]
 
     #Set the CFL number and the final time
     dt = 0.1 #0.5*mesh_x.dx
@@ -46,7 +45,6 @@ function main(; tfinal = 100)
 
     #Array of physical quantities
     elec_energy = [compute_elec_energy(phi, mesh_x)]
-    display(elec_energy)
     mass = [compute_total_mass(rho_tot, mesh_x)]
     momentum = [compute_momentum(rho, u, mesh_x, grid_v)]
     total_energy = [compute_elec_energy(phi, mesh_x) + compute_kinetic_energy(rho, u, mesh_x, grid_v)]
@@ -69,30 +67,32 @@ function main(; tfinal = 100)
 
         end
 
-        copyto!(rho_at_step_n, rho)
-        copyto!(u_at_step_n, u)
+        rho_at_step_n = deepcopy(rho)
+        u_at_step_n = deepcopy(u)
+
         for j in 1:nv
-            @timeit to "feet" compute_x_feet_mesh!(dt, mesh_x, view(x_feet_mesh, :, j), view(u_at_step_n, :, j), E)
+            @timeit to "feet" compute_x_feet_mesh!(dt, mesh_x, x_feet_mesh[j], u_at_step_n[j], e)
             @timeit to "predictor" update_rho_predictor!(
                 solver,
-                mesh_x, view(rho_pred, :, j), view(rho_at_step_n, :, j), view(u_at_step_n, :, j), dt,
-                view(x_feet_mesh, :, j)
+                mesh_x, rho_pred[j], rho_at_step_n[j], u_at_step_n[j], dt,
+                x_feet_mesh[j]
             )
         end
         #Assemble rho
         @timeit to "compute rho" compute_rho_total!(rho_tot, grid_v, rho_pred)
         #Solve Poisson
         @timeit to "compute phi" poisson!(phi_pred, mesh_x, rho_tot)
-        E_pred = -1.0 .* compute_dx!(phi_pred, mesh_x)
+        e_pred = -1.0 .* compute_dx!(phi_pred, mesh_x)
         for j in 1:nv
-            @timeit to "update u" update_u!(solver, mesh_x, E, E_pred, view(u, :, j), view(u_at_step_n, :, j), dt, view(x_feet_mesh, :, j))
-            @timeit to "corrector" update_rho_corrector!(solver, mesh_x, view(rho, :, j), view(rho_at_step_n, :, j), view(u_at_step_n, :, j), view(u, :, j), dt, view(x_feet_mesh, :, j))
+            @timeit to "update u" update_u!(solver, mesh_x, e, e_pred, u[j], u_at_step_n[j], dt, x_feet_mesh[j])
+            @timeit to "corrector" update_rho_corrector!(solver, mesh_x, rho[j], rho_at_step_n[j], 
+                                                         u_at_step_n[j], u[j], dt, x_feet_mesh[j])
         end
         #Assemble rho
         @timeit to "compute rho" compute_rho_total!(rho_tot, grid_v, rho)
         #Solve Poisson
         @timeit to "compute phi" poisson!(phi, mesh_x, rho_tot)
-        E = -1.0 * compute_dx!(phi, mesh_x)
+        e = -1.0 * compute_dx!(phi, mesh_x)
 
         @timeit to "compute rho" compute_rho_total!(rho_tot, grid_v, rho)
 
