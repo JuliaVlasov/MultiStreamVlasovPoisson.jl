@@ -6,9 +6,9 @@ abstract type AbstractSolver end
 
 struct SemiLagrangian <: AbstractSolver end
 
-export compute_dx!
+export compute_dx
 
-function compute_dx!(v::AbstractVector, mesh::AbstractMesh)
+function compute_dx(v::AbstractVector, mesh::AbstractMesh)
     kx = mesh.kx
     dx_v = real(ifft(1im * kx .* fft(v)))
     return dx_v
@@ -26,19 +26,12 @@ function compute_x_feet_mesh!(dt::Float64, mesh::AbstractMesh,
 
     nx = mesh.nx
     dx = mesh.dx
-    L = mesh.L
-    h = 1e-4
-    itp = cubic_interp(1.0:nx+1, u, bc = PeriodicBC(endpoint=:exclusive))
     for i in eachindex(e)
-        d = 0.0
-        err = 1.0
-        p = Inf
         b = -0.5 * dt * dt * e[i]
-        while abs(p - itp(i+d)) > h
-            d = - (dt * p + b) / dx
-        end
+        d = - (dt * u[i] + b) / dx
         x_feet_mesh[i] = mod1(i + d, nx+1)
     end
+
 end
 
 export update_rho_predictor!

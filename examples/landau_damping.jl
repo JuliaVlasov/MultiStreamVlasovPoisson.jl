@@ -2,6 +2,7 @@
 # # Landau damping with Vlasov-Poisson solver
 
 using MultiPhaseVlasov
+using FastInterpolations
 using Plots
 using .Threads
 using DispersionRelations
@@ -16,7 +17,7 @@ function main(; tfinal = 10)
 
     k = 0.5
     α = 0.01
-    nx, xmin, xmax = 96, 0.0, 2π / k
+    nx, xmin, xmax = 128, 0.0, 2π / k
     mesh_x = UniformMesh(xmin, xmax, nx)
     nv, vmin, vmax = 256, -6.0, 6.0
     grid_v = UniformGrid(vmin, vmax, nv, mesh_x, test_case)
@@ -27,17 +28,7 @@ function main(; tfinal = 10)
     u_before = zeros(nx + 1, nv)
     u_remapped = zeros(nx + 1, nv)
     poisson!(phi, mesh_x, rho_tot)
-    e = -1.0 * compute_dx!(phi, mesh_x)
-
-    # +
-    x_feet_mesh = [zeros(nx + 1) for i in 1:nv]
-    rho_pred = [zeros(nx + 1) for i in 1:nv]
-    phi_pred = zeros(nx + 1)
-    e_pred = zeros(nx + 1)
-
-    #Initialize the streams
-    u_at_step_n = [zeros(nx + 1) for i in 1:nv]
-    rho_at_step_n = [zeros(nx + 1) for i in 1:nv]
+    e = -1.0 .* compute_dx(phi, mesh_x)
 
     #Set the CFL number and the final time
     dt = 0.1 #0.5*mesh_x.dx
@@ -51,6 +42,16 @@ function main(; tfinal = 10)
     total_energy = [compute_elec_energy(phi, mesh_x) + compute_kinetic_energy(rho, u, mesh_x, grid_v)]
 
     n = 0
+
+    e_pred = zeros(nx + 1)
+    e_new = zeros(nx + 1)
+    phi_pred = zeros(nx + 1)
+    rho_pred = zeros(nx + 1)
+    xq = zeros(nx + 1)
+    rho_at_step_n = zeros(nx + 1)
+    u_at_step_n = zeros( nx + 1)
+    du_dx = zeros( nx + 1)
+    du_dx_plus = zeros( nx + 1)
 
     while n * dt <= tfinal
 
@@ -68,36 +69,61 @@ function main(; tfinal = 10)
 
         end
 
+        nx = mesh_x.nx
+        dx = mesh_x.dx
+        fill!(rho_tot, 0.0)
+        xi = 1.0:(nx+1)
+        bc = PeriodicBC(endpoint=:exclusive)
 
-        for j in 1:nv
-            @timeit to "feet" compute_x_feet_mesh!(dt, mesh_x, x_feet_mesh[j], u[j], e)
-            @timeit to "predictor" update_rho_predictor!(
-                solver,
-                mesh_x, rho_pred[j], rho[j], u[j], dt,
-                x_feet_mesh[j]
-            )
+        fill!(rho_tot, 0.0)
+
+        @timeit to "predictor" for j in 1:nv
+            for i in eachindex(e)
+                d = - (dt * u[j][i] - 0.5 * dt * dt * e[i]) / dx
+                xq[i] = mod1(i + d, nx+1)
+            end
+            du_dx .= compute_dx(u[j], mesh_x)
+            du_dx .= cubic_interp(xi, du_dx, xq, bc = bc)
+            rho_pred .= cubic_interp(xi, rho[j], xq, bc = bc)
+            rho_pred .*= exp.(-dt .* du_dx)
+            rho_tot .+= rho_pred .* grid_v.w[j]
         end
-        #Assemble rho
-        @timeit to "compute rho" compute_rho_total!(rho_tot, grid_v, rho_pred)
-        #Solve Poisson
-        @timeit to "compute phi" poisson!(phi_pred, mesh_x, rho_tot)
-        e_pred .= -1.0 .* compute_dx!(phi_pred, mesh_x)
 
-        rho_at_step_n .= deepcopy(rho)
-        u_at_step_n .= deepcopy(u)
-
-        for j in 1:nv
-            @timeit to "update u" update_u!(solver, mesh_x, e, e_pred, u[j], u_at_step_n[j], dt, x_feet_mesh[j])
-            @timeit to "corrector" update_rho_corrector!(solver, mesh_x, rho[j], rho_at_step_n[j], 
-                                                         u_at_step_n[j], u[j], dt, x_feet_mesh[j])
+        @timeit to "poisson" begin
+            poisson!(phi_pred, mesh_x, rho_tot)
+            e_pred .= -1.0 .* compute_dx(phi_pred, mesh_x)
         end
-        #Assemble rho
-        @timeit to "compute rho" compute_rho_total!(rho_tot, grid_v, rho)
-        #Solve Poisson
-        @timeit to "compute phi" poisson!(phi, mesh_x, rho_tot)
-        e .= -1.0 * compute_dx!(phi, mesh_x)
 
-        @timeit to "compute rho" compute_rho_total!(rho_tot, grid_v, rho)
+        @timeit to "corrector" for j in 1:nv
+
+            u_at_step_n .= u[j]
+            rho_at_step_n .= rho[j]
+
+            for i in eachindex(e)
+                b = -0.5 * dt * dt * e[i]
+                d = - (dt * u[j][i] + b) / dx
+                xq[i] = mod1(i + d, nx+1)
+            end
+            u[j] .= cubic_interp(xi, u_at_step_n, xq, bc = bc)
+            e_new .= cubic_interp(xi, e, xq, bc = bc)
+            e_new .+= e_pred
+            u[j] .+= 0.5dt .* e_new
+
+            du_dx = compute_dx(u_at_step_n, mesh_x)
+            du_dx_plus = compute_dx(u[j], mesh_x)
+
+            rho[j] .= cubic_interp(xi, rho_at_step_n, xq, bc = bc)
+            du_dx .= cubic_interp(xi, du_dx, xq, bc = bc)
+            du_dx .+= du_dx_plus
+            rho[j] .*= exp.(-0.5 * dt .* du_dx)
+        end
+
+        @timeit to "poisson" begin
+            compute_rho_total!(rho_tot, grid_v, rho)
+            poisson!(phi, mesh_x, rho_tot)
+            e .= -1.0 * compute_dx(phi, mesh_x)
+        end
+
 
         push!(elec_energy, compute_elec_energy(phi, mesh_x))
         push!(mass, compute_total_mass(rho_tot, mesh_x))
@@ -113,7 +139,7 @@ function main(; tfinal = 10)
 
 end
 
-@time time, elec_energy = main()
+@time time, elec_energy = main( tfinal = 50.0 )
 
 show(to)
 
