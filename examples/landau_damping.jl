@@ -178,9 +178,11 @@ function main(; tfinal = 10)
     e_new = zeros(nx)
 
     bc = PeriodicBC(endpoint = :exclusive)
-
-    u_hat = zeros(ComplexF64, nx, nv)
     du_dx = zeros(nx)
+
+    v = zeros(nx)
+    dv = zeros(nx, nv)
+    v_hat = zeros(ComplexF64, nx, nv)
 
     while n * dt <= tfinal
 
@@ -191,15 +193,18 @@ function main(; tfinal = 10)
 
         fill!(rho_tot, 0.0)
 
+        v_hat .= fft(u, 1)
+        v_hat .*= 1im .* mesh_x.kx
+        v .= real(ifft(v_hat, 1))
+
         for j in 1:nv
             for i in eachindex(e)
                 d = - (dt * u[i,j] - 0.5 * dt * dt * e[i]) / dx
                 xq[i] = mod1(i + d, nx)
             end
-            @timeit to "dx" du_dx .= compute_dx(u[:,j], mesh_x)
-            du_dx .= cubic_interp(xi, du_dx, xq, bc = bc)
+            v .= cubic_interp(xi, view(dv, :, j), xq, bc = bc)
             rho_pred .= cubic_interp(xi, rho[j], xq, bc = bc)
-            rho_tot .+= rho_pred .* grid_v.w[j] .* exp.(-dt .* du_dx)
+            rho_tot .+= rho_pred .* grid_v.w[j] .* exp.(-dt .* v)
         end
 
         @timeit to "poisson" begin
