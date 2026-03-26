@@ -22,7 +22,7 @@ struct UniformMesh
 
     function UniformMesh(xmin::Float64, xmax::Float64, nx::Int)
         dx = (xmax - xmin) / nx
-        x = range(start=xmin, step=dx, length=nx+1)
+        x = LinRange(xmin, xmax, nx+1)[1:end-1]
         kx = collect(2π / (xmax - xmin) * fftfreq(nx, nx))
         return new(xmin, xmax, nx, x, kx, dx)
     end
@@ -51,7 +51,7 @@ end
 function mean_f0(test_case::LandauDamping, mesh::UniformMesh, v::Float64)::Float64
     mf0 = 0.0
     nx, dx, xmin, xmax = mesh.nx, mesh.dx, mesh.xmin, mesh.xmax
-    for i in 1:(nx + 1)
+    for i in 1:nx
         x = mesh.x[i]
         mf0 += f0(test_case, x, v) * dx / (xmax - xmin)
     end
@@ -86,8 +86,7 @@ end
 function compute_dx(v::AbstractVector, mesh::UniformMesh)
     nx = mesh.nx
     kx = mesh.kx
-    dx_v = real(ifft(1im * kx .* fft(view(v, 1:nx))))
-    push!(dx_v, dx_v[1])
+    dx_v = real(ifft(1im * kx .* fft(v)))
     return dx_v
 end
 
@@ -96,15 +95,15 @@ function compute_initial_condition(test_case::LandauDamping, mesh::UniformMesh, 
 
     k = test_case.k
     nx, nv = mesh.nx, grid.nv
-    rho = [zeros(nx + 1) for i in 1:nv]
-    u = [zeros(nx + 1) for i in 1:nv]
-    rho_tot = zeros(nx + 1)
+    rho = [zeros(nx) for i in 1:nv]
+    u = zeros(nx, nv)
+    rho_tot = zeros(nx)
     for j in 1:nv
         v = grid.v[j]
         for i in 1:nx
             x = mesh.x[i]
             rho[j][i] = f0(test_case, x, v) / mean_f0(test_case, mesh, v)
-            u[j][i] = v
+            u[i,j] = v
             rho_tot[i] += grid.w[j] * rho[j][i]
         end
     end
@@ -123,12 +122,11 @@ end
 
 function poisson!(phi::Vector{Float64}, mesh::UniformMesh, rho_tot::Vector{Float64}; ϵ = 1.0)
 
-    rho_tot_f = fft(rho_tot[1:end-1] .- 1)
+    rho_tot_f = fft(rho_tot .- 1)
     rho_tot_f[1] = 0
     kkx = mesh.kx
     kkx[1] = 1
-    phi[1:end-1] .= real(ifft((rho_tot_f ./ (kkx .* kkx)))) / (ϵ * ϵ)
-    phi[end] = phi[1]
+    phi .= real(ifft((rho_tot_f ./ (kkx .* kkx)))) / (ϵ * ϵ)
 
 end
 
@@ -155,7 +153,7 @@ function main(; tfinal = 10)
 
     rho, u, rho_tot = compute_initial_condition(test_case, mesh_x, grid_v)
 
-    phi = zeros(nx + 1)
+    phi = zeros(nx)
     poisson!(phi, mesh_x, rho_tot)
     e = -1.0 .* compute_dx(phi, mesh_x)
 
@@ -167,42 +165,40 @@ function main(; tfinal = 10)
 
     n = 0
 
-    e_pred = zeros(nx + 1)
-    phi_pred = zeros(nx + 1)
-    rho_pred = zeros(nx + 1)
+    e_pred = zeros(nx)
+    phi_pred = zeros(nx)
+    rho_pred = zeros(nx)
 
-    xq = zeros(nx + 1)
-    rho_at_step_n = zeros(nx + 1)
-    u_at_step_n = zeros( nx + 1)
+    xi = 1.0:nx
+    xq = zeros(nx)
+    rho_at_step_n = zeros(nx)
+    u_at_step_n = zeros(nx)
 
-    du_dx_plus = zeros( nx + 1)
-    e_new = zeros(nx + 1)
+    du_dx_plus = zeros(nx)
+    e_new = zeros(nx)
 
-    cache = CubicSplineCache(1.0:(nx + 1); bc = PeriodicBC())
+    bc = PeriodicBC(endpoint = :exclusive)
 
-    u_hat = zeros(ComplexF64, nx)
-    du_dx = zeros(nx + 1)
+    u_hat = zeros(ComplexF64, nx, nv)
+    du_dx = zeros(nx)
 
     while n * dt <= tfinal
 
         nx = mesh_x.nx
         dx = mesh_x.dx
         fill!(rho_tot, 0.0)
-        xi = 1.0:(nx+1)
-        bc = PeriodicBC()
+        xi = 1.0:nx
 
         fill!(rho_tot, 0.0)
 
-
         for j in 1:nv
             for i in eachindex(e)
-                d = - (dt * u[j][i] - 0.5 * dt * dt * e[i]) / dx
+                d = - (dt * u[i,j] - 0.5 * dt * dt * e[i]) / dx
                 xq[i] = mod1(i + d, nx)
             end
-            @timeit to "dx" du_dx .= compute_dx(u[j], mesh_x)
-            du_dx .= cubic_interp(cache, du_dx, xq)
-            rho[j][end] = rho[j][1]
-            rho_pred .= cubic_interp(cache, rho[j], xq)
+            @timeit to "dx" du_dx .= compute_dx(u[:,j], mesh_x)
+            du_dx .= cubic_interp(xi, du_dx, xq, bc = bc)
+            rho_pred .= cubic_interp(xi, rho[j], xq, bc = bc)
             rho_tot .+= rho_pred .* grid_v.w[j] .* exp.(-dt .* du_dx)
         end
 
@@ -215,25 +211,24 @@ function main(; tfinal = 10)
 
         for j in 1:nv
 
-            u[j][end] = u[j][1]
-            u_at_step_n .= u[j]
+            u_at_step_n .= u[:, j]
             rho_at_step_n .= rho[j]
 
             for i in eachindex(e)
-                d = - (dt * u[j][i] -0.5 * dt * dt * e[i]) / dx
+                d = - (dt * u[i,j] -0.5 * dt * dt * e[i]) / dx
                 xq[i] = mod1(i + d, nx)
             end
 
-            u[j] .= cubic_interp(cache, u_at_step_n, xq)
-            e_new .= cubic_interp(cache, e, xq)
+            u[:, j] .= cubic_interp(xi, u_at_step_n, xq, bc = bc)
+            e_new .= cubic_interp(xi, e, xq, bc = bc)
             e_new .+= e_pred
-            u[j] .+= 0.5dt .* e_new
+            u[:, j] .+= 0.5dt .* e_new
 
             @timeit to "dx" du_dx .= compute_dx(u_at_step_n, mesh_x)
-            @timeit to "dx" du_dx_plus .= compute_dx(u[j], mesh_x)
+            @timeit to "dx" du_dx_plus .= compute_dx(u[:, j], mesh_x)
 
-            rho[j] .= cubic_interp(cache, rho_at_step_n, xq)
-            du_dx .= cubic_interp(cache, du_dx, xq)
+            rho[j] .= cubic_interp(xi, rho_at_step_n, xq, bc = bc)
+            du_dx .= cubic_interp(xi, du_dx, xq, bc = bc)
             du_dx .+= du_dx_plus
             rho[j] .*= exp.(-0.5dt .* du_dx)
             rho_tot .+= rho[j] .* grid_v.w[j] 
