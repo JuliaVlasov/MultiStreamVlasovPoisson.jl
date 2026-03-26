@@ -11,5 +11,6 @@ include("non_linear_poisson_solver.jl")
 include("compute_physical_quantity.jl")
 include("single_fluid_solution.jl")
 include("compute_f.jl")
+include("SL-Strang.jl")
 
 end

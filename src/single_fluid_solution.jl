@@ -248,13 +248,15 @@ function compute_char_foot(x::Float64,dt::Float64,mesh::AbstractMesh,u::Abstract
     d = 0.0
     L = mesh.L
     err = 1.0
-    h = 1E-10
-    #Use Fixed-Point methodod to compute the feet of the characteristic : X(t-dt) = X(t) + d we search for d
-    while( abs(err) >1E-10 )
-        p = interpolate_cubic_on_mesh(x+d,mesh,u)
-        d = -dt *p + b
-        err = d + dt * p  - b
-    end
+    p = 1.0 #interpolate_cubic_on_mesh(x+d,mesh,u)
+    #Use Fixed-Point method to compute the feet of the characteristic : X(t-dt) = X(t) + d we search for d
+    #One fixed point iteration : To improve later
+    p = interpolate_cubic_on_mesh(x+d,mesh,u)
+    d = -dt * p + b
+    #while( abs(interpolate_cubic_on_mesh(x + d, mesh, u) - p) >1E-8)
+       # d = -dt *p + b
+        #err = d + dt * p  - b
+    #end
     x_feet = mod(x+d,L)
     return x_feet
 end
