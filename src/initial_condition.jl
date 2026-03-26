@@ -1,8 +1,5 @@
 using Parameters
 
-export mean_f0
-export f0
-
 abstract type InitialCondition end
 
 include("landau_damping.jl")
