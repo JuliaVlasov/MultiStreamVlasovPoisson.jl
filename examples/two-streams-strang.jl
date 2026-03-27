@@ -53,9 +53,6 @@ function main(tfinal = 50)
 
         dt = min(dt, tfinal - n*dt)
 
-        iter = 0
-        err=1e-10
-        maxiter=50
         sum_norm_dx_u += dt*compute_norm_dx_u(mesh_x, grid_v, u)
 
         threshold = 0.2 #Numerical remapping threshold : you may change it or not depending on the test case
@@ -105,7 +102,7 @@ function main(tfinal = 50)
         )
         title!("$n")
 
-    end every 100
+    end every 10
 
     return time, elec_energy, anim
 
