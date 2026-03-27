@@ -7,7 +7,7 @@ import MultiPhaseVlasov: compute_dx!, poisson!
 import MultiPhaseVlasov: compute_norm_dx_u, interpolate_f_on_grid
 import MultiPhaseVlasov: TwoStreams, AbstractMesh, AbstractGrid
 import MultiPhaseVlasov: Spline
-import MultiPhaseVlasov: remap_f!, compute_dx, compute_initial_condition
+import MultiPhaseVlasov: remap_f!, compute_dx
 using FastInterpolations
 using TimerOutputs
 
@@ -67,7 +67,7 @@ function compute_initial_condition(
     grid_v::AbstractGrid,
     k::Float64,
     T::Float64,
-    test_case::String,
+    test_case::TwoStreams,
 )
 
     nx, nv = mesh_x.nx, grid_v.nv
@@ -79,8 +79,8 @@ function compute_initial_condition(
         for i = 1:nx
             x_i = mesh_x.x[i]
             rho[i, j] =
-                f0(x_i, alpha, k, T, u_ini(x_i, k, test_case)) /
-                mean_f0(alpha, T, mesh_x, test_case)
+                f0(x_i, alpha, k, T, test_case.v0) /
+                mean_f0(test_case, mesh_x, alpha)
             u[i, j] = alpha
             rho_tot[i] += grid_v.w[j] * rho[i, j]
         end
@@ -93,7 +93,7 @@ const to = TimerOutput()
 function main(tfinal = 50)
 
     ϵ = 1.0
-    test_case = "two_streams"
+    test_case = TwoStreams()
     solver = "SL-Strang"
     T = 1.0                #Temperature of the Maxwellian
     k = 0.2               #Wave number
@@ -101,7 +101,7 @@ function main(tfinal = 50)
     nx, xmin, xmax = 256, 0.0, L
     mesh_x = UniformMesh(xmin, xmax, nx)
     nv, vmin, vmax = 256, -6.0, 6.0
-    grid_v = UniformGrid(vmin, vmax, nv, T, mesh_x, test_case)
+    grid_v = UniformGrid(vmin, vmax, nv, mesh_x, test_case)
     rho, u, rho_tot = compute_initial_condition(mesh_x, grid_v, k, T, test_case)
     phi = zeros(nx)
     rho_tot = vec(sum(rho .* grid_v.w', dims = 2))
