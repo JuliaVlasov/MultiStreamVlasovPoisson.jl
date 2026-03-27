@@ -9,9 +9,7 @@ using MultiPhaseVlasov
 using Parameters
 using Plots
 using .Threads
-using TimerOutputs
 
-const to = TimerOutput()
 function main(; tfinal = 40)
 
     k = 0.5
@@ -23,11 +21,11 @@ function main(; tfinal = 40)
     mesh_x = UniformMesh(xmin, xmax, nx)
     grid_v = UniformGrid(vmin, vmax, nv, mesh_x, test_case)
 
-    rho, u, rho_tot = compute_initial_condition(test_case, mesh_x, grid_v)
+    rho, u = compute_initial_condition(test_case, mesh_x, grid_v)
 
+    e = zeros(nx)
     phi = zeros(nx)
-    poisson!(phi, mesh_x, rho_tot)
-    e = -1.0 .* compute_dx(phi, mesh_x)
+    compute_electric_field!(e, phi, mesh_x, grid_v, rho)
 
     dt = 0.1 
     time = [0.0]
@@ -65,7 +63,7 @@ function main(; tfinal = 40)
 
         update_rho_predictor!(rho_pred, solver, mesh_x, rho, v, dv, dt)
 
-        compute_electric_field!(e_pred, mesh_x, grid_v, rho_pred, rho_tot, phi)
+        compute_electric_field!(e_pred, phi, mesh_x, grid_v, rho_pred)
 
         update_u!( u, solver, mesh_x, e, e_pred, e_new, dt)
 
@@ -73,7 +71,7 @@ function main(; tfinal = 40)
 
         update_rho_corrector!( rho, solver, mesh_x, du_dx, dv, dv_plus, dt)
 
-        compute_electric_field!(e, mesh_x, grid_v, rho, rho_tot, phi)
+        compute_electric_field!(e, phi, mesh_x, grid_v, rho)
 
         push!(elec_energy, compute_elec_energy(phi, mesh_x))
         t += dt
@@ -87,8 +85,6 @@ function main(; tfinal = 40)
 end
 
 @time time, elec_energy = main( tfinal = 100.0 )
-
-show(to)
 
 plot(time, elec_energy, yscale = :ln)
 line, ω = fit_complex_frequency(time, elec_energy)

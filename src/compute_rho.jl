@@ -8,17 +8,15 @@ function compute_initial_condition(test_case::InitialCondition, mesh::UniformMes
     nx, nv = mesh.nx, grid.nv
     rho = zeros(nx, nv)
     u = zeros(nx, nv)
-    rho_tot = zeros(nx)
     for j in 1:nv
         v = grid.v[j]
         for i in 1:nx
             x = mesh.x[i]
             rho[i,j] = f0(test_case, x, v) / mean_f0(test_case, mesh, v)
             u[i,j] = v
-            rho_tot[i] += grid.w[j] * rho[i,j]
         end
     end
-    return rho, u, rho_tot
+    return rho, u
 end
 
 

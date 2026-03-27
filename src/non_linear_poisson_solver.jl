@@ -101,8 +101,6 @@ function solve!(phi::Vector{Float64}, solver::NonLinearPoissonSolver, rho_tot::V
     return
 end
 
-export poisson!
-
 """
 $(SIGNATURES)
 
@@ -110,21 +108,21 @@ Solve the elliptic problem: ϵ^2 Δϕ = ρ-1  on the Torus.
 
 Uses Fourier method.
 """
-function poisson!(phi::Vector{Float64}, mesh::UniformMesh, rho_tot::Vector{Float64}; ϵ = 1.0)
+function poisson(mesh::UniformMesh, rho::Vector{Float64}; ϵ = 1.0)
 
-    rho_tot_f = fft(rho_tot .- 1)
-    rho_tot_f[1] = 0
+    rho_f = fft(rho .- 1)
+    rho_f[1] = 0
     kkx = mesh.kx
     kkx[1] = 1
-    return phi .= +real(ifft((rho_tot_f ./ (kkx .* kkx)))) / (ϵ * ϵ)
+    return real(ifft((rho_f ./ (kkx .* kkx)))) / (ϵ * ϵ)
 
 end
 
 export compute_electric_field!
 
-function compute_electric_field!(e, mesh, grid, rho, rho_tot, phi)
-    rho_tot .= vec(sum(rho .* grid.w', dims=2))
-    poisson!(phi, mesh, rho_tot)
+function compute_electric_field!(e, phi, mesh, grid, rho)
+    rho_tot = vec(sum(rho .* grid.w', dims=2))
+    phi .= poisson(mesh, rho_tot)
     e .= -1.0 .* compute_dx(phi, mesh)
 end
 
