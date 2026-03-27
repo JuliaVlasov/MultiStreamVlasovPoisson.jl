@@ -5,6 +5,7 @@ using .Threads
 import MultiPhaseVlasov: AbstractMesh, UniformMesh, compute_elec_energy
 import MultiPhaseVlasov: compute_dx!
 using FastInterpolations
+using TimerOutputs
 
 abstract type AbstractGrid end
 
@@ -49,12 +50,12 @@ end
 
 
 function Spline(x::Float64, h::Float64)
-    if (h < abs(x) < 2 * h)
+    if h < abs(x) < 2h
         S = (1.0/6.0) * ((2-abs(x/h)) * (2-abs(x/h)) * (2-abs(x/h)))
     elseif (abs(x) < h)
         S = (1.0/6.0) * (4.0 - 6.0*(abs(x/h)*abs(x/h)) + 3.0*(abs(x/h)*abs(x/h)*abs(x/h)))
     else
-        S = 0
+        S = 0.0
     end
     return S/h
 end
@@ -211,7 +212,9 @@ function remap_f!(rho, u, mesh_x::AbstractMesh, grid_v::UniformGrid)
     u .= new_u
 end
 
-function main()
+const to = TimerOutput()
+
+function main(tfinal = 50)
 
     ϵ = 1.0
     test_case = "two_streams"
@@ -231,8 +234,7 @@ function main()
     u_pred = zeros(nx, nv)
     phi_pred = zeros(nx)
 
-    dt = 0.1 #1.0*mesh_x.dx
-    tfinal = 20
+    dt = 0.1 
     time = [0.0]
     remap_time = 0.0
 
@@ -242,14 +244,15 @@ function main()
     sum_norm_dx_u = 0.0
     remap_time = 0.0
 
-    jac = zeros(nx)
     dx_u = zeros(nx, nv)
     u_hat = zeros(ComplexF64, nx, nv)
 
     bc = PeriodicBC(endpoint = :exclusive)
     xq = [zeros(nx) for j in 1:nv]
+    xi = 1.0:nx
 
     while n * dt <= tfinal
+
         iter = 0
         err=1e-10
         maxiter=50
@@ -257,7 +260,7 @@ function main()
 
         threshold = 0.2 #Numerical remapping threshold : you may change it or not depending on the test case
 
-        if (sum_norm_dx_u > threshold)
+        @timeit to "remap" if sum_norm_dx_u > threshold
             @info "Remapping f at time = $(n*dt), solver = $solver"
             remap_time = n * dt
             remap_f!(rho, u, mesh_x, grid_v)
@@ -266,25 +269,25 @@ function main()
 
         u_pred .= u .+ 0.5dt .* e
 
-        compute_dx!(dx_u, mesh_x, u, u_hat)
+        @timeit to "fft" compute_dx!(dx_u, mesh_x, u, u_hat)
 
-        for j in 1:nv, i in 1:nx
+        @timeit to "feet" for j in 1:nv, i in 1:nx
             xq[j][i] = compute_feet_char(i, dt, mesh_x, view(u_pred, :, j))
         end
 
-        xi = 1.0:nx
-        for j = 1:nv
-            jac .= 1 .+ dt * cubic_interp(xi, view(dx_u, :, j), xq[j], bc = bc)
+        @timeit to "advection" @threads for j = 1:nv
+            jac = 1 .+ dt * cubic_interp(xi, view(dx_u, :, j), xq[j], bc = bc)
             rho[:, j] .= cubic_interp(xi, view(rho, :, j), xq[j], bc = bc) ./ jac
             u[:, j] .= cubic_interp(xi, view(u_pred, :, j), xq[j], bc = bc)
         end
 
         u .+= 0.5dt .* e
 
-        rho_tot .= vec(sum(rho .* grid_v.w', dims = 2))
-
-        poisson!(phi, mesh_x, rho_tot, ϵ)
-        e .= -1.0*compute_dx(phi, mesh_x)
+        @timeit to "poisson" begin
+            rho_tot .= vec(sum(rho .* grid_v.w', dims = 2))
+            poisson!(phi, mesh_x, rho_tot, ϵ)
+            e .= -1.0*compute_dx(phi, mesh_x)
+        end
 
         push!(elec_energy, compute_elec_energy(phi, mesh_x))
         n += 1
@@ -307,6 +310,8 @@ function main()
 end
 
 @time time, elec_energy, plot_f = main()
+
+show(to)
 
 png(plot_f, "plot_df")
 plot(time, log.(elec_energy))
