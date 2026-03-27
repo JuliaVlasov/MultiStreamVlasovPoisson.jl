@@ -98,7 +98,7 @@ end
 function landau_fast(nx, nv, dt, nt::Int64)
 
     # Set grid
-    eps, kx = 0.001, 0.4
+    eps, kx = 0.001, 0.5
     xmin, xmax = 0.0, 2π / kx
     vmin, vmax = -6.0, 6.0
     meshx = UniformMesh(xmin, xmax, nx)
@@ -139,7 +139,7 @@ function landau_fast(nx, nv, dt, nt::Int64)
 
 end
 
-nx, nv = 256, 512
+nx, nv = 128, 256
 dt, nt = 0.1, 1000
 t, nrj = landau_fast(nx, nv, dt, 1)
 landau_fast(nx, nv, dt, 1) # warmup
@@ -147,7 +147,7 @@ landau_fast(nx, nv, dt, 1) # warmup
 plot(t, nrj; label = "|E|²", yaxis = :log)
 line, ω, = fit_complex_frequency(t, nrj)
 plot!(t, line, yaxis = :log, label = "$(imag(ω / 2))")
-title!("α = 0.001, k = 0.4")
+title!("α = 0.001, k = 0.5")
 
 # about fit_complex_frequency
 # if E = |exp.(-im * (a + im * b) * t)|^2
