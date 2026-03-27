@@ -42,22 +42,6 @@ function compute_dx!(dv, mesh::AbstractMesh, u, v_hat)
 end
 
 
-export compute_x_feet_mesh!
-
-"""
-$(SIGNATURES)
-
-Use Fixed-Point methodod to compute the feet of the characteristic : X(t-dt) = X(t) + d we search for d
-"""
-function compute_x_feet_mesh!(solver::SemiLagrangian, u::Matrix{Float64}, e::Vector{Float64}, dt::Float64)
-
-    nx, dx, nv = solver.nx, solver.dx, solver.nv
-    for j in 1:nv, i in eachindex(e)
-        d = - (dt * u[i,j] -0.5 * dt * dt * e[i]) / dx
-        solver.xq[j][i] = mod1(i + d, nx)
-    end
-
-end
 
 export update_rho_predictor!
 
@@ -131,3 +115,61 @@ function update_rho_corrector!(
     end
 
 end
+
+export compute_xfeet!
+
+function compute_xfeet!(xq, xi, u, mesh, dt, bc)
+
+    nx, dx = mesh.nx, mesh.dx
+    @threads for j in eachindex(xq)
+        itp = cubic_interp(xi, view(u, :, j), bc = bc)
+        it = 0
+        err = 1.0
+        xnew = copy(xi)
+        while err > 1e-5
+            xold = copy(xnew)
+            xnew = mod1.(xi .- dt .* itp(xnew) ./ dx, nx)
+            err = maximum(abs.(xold .- xnew))
+            if it > 50
+                @info "err = $err,  it = $it, x_feet = $x_feet, FIXED-POINT DOES NOT CONVERGE"
+                break
+            end
+            it += 1
+        end
+        xq[j] .= xnew
+    end
+end
+
+export compute_x_feet_mesh!
+
+"""
+$(SIGNATURES)
+
+Use Fixed-Point methodod to compute the feet of the characteristic : X(t-dt) = X(t) + d we search for d
+"""
+function compute_x_feet_mesh!(solver::SemiLagrangian, u::Matrix{Float64}, e::Vector{Float64}, dt::Float64)
+
+    nx, dx, nv = solver.nx, solver.dx, solver.nv
+    v = u .- 0.5dt .* e
+    xi = 1.0:nx
+    @threads for j in 1:nv
+        itp = cubic_interp(xi, view(v, :, j), bc = PeriodicBC( endpoint = :exclusive))
+        it = 0
+        err = 1.0
+        xnew = copy(xi)
+        while err > 1e-6
+            xold = copy(xnew)
+            xnew = mod1.(xi .- dt .* itp(xnew) ./ dx, nx)
+            err = maximum(abs.(xold .- xnew))
+            if it > 50
+                @info "err = $err,  it = $it, x_feet = $x_feet, FIXED-POINT DOES NOT CONVERGE"
+                break
+            end
+            it += 1
+        end
+        solver.xq[j] .= xnew
+    end
+
+
+end
+
