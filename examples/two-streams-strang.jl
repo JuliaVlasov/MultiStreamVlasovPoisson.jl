@@ -47,7 +47,11 @@ function main(tfinal = 50)
     xi = 1.0:nx
     dx = mesh_x.dx
 
-    while n * dt <= tfinal
+    nstep = floor(Int, tfinal / dt) + 1
+
+    anim = @gif for n in 1:nstep
+
+        dt = min(dt, tfinal - n*dt)
 
         iter = 0
         err=1e-10
@@ -89,25 +93,26 @@ function main(tfinal = 50)
         n += 1
         push!(time, n * dt)
 
-    end
 
-    f_on_grid = interpolate_f_on_grid(mesh_x, grid_v, rho, u)
-    plot_f = plot(
-        mesh_x.x,
-        grid_v.v,
-        f_on_grid',
-        st = [:surface],
-        camera = (0, 90),
-        xlabel = "x",
-        ylabel = "v",
-    )
-    return time, elec_energy, plot_f
+        plot(
+            mesh_x.x,
+            grid_v.v,
+            interpolate_f_on_grid(mesh_x, grid_v, rho, u)',
+            st = [:surface],
+            camera = (0, 90),
+            xlabel = "x",
+            ylabel = "v",
+        )
+        title!("$n")
+
+    end every 100
+
+    return time, elec_energy, anim
 
 end
 
-@time time, elec_energy, plot_f = main()
+@time time, elec_energy, anim = main()
 
 show(to)
 
-png(plot_f, "plot_df")
 plot(time, log.(elec_energy))
