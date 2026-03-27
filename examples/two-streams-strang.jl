@@ -67,22 +67,8 @@ function main(tfinal = 50)
 
         @timeit to "fft" compute_dx!(dx_u, mesh_x, u, u_hat)
 
-        @timeit to "feet" @threads for j in 1:nv
-            itp = cubic_interp(xi, view(u_pred, :, j), bc = bc)
-            it = 0
-            err = 1.0
-            xnew = xi
-            while err > 1e-5
-                xold = copy(xnew)
-                xnew = mod1.(xi .- dt .* itp(xnew) ./ dx, nx)
-                err = maximum(abs.(xold .- xnew))
-                if it > 50
-                    @info "err = $err,  it = $it, x_feet = $x_feet, FIXED-POINT DOES NOT CONVERGE"
-                    break
-                end
-                it += 1
-            end
-            xq[j] .= xnew
+        @timeit to "feet" begin
+            compute_xfeet!(xq, xi, u_pred, mesh_x, dt, bc)
         end
 
         @timeit to "advection" @threads for j = 1:nv
