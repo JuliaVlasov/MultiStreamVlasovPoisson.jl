@@ -6,9 +6,11 @@ function interpolate_f_on_grid(mesh_x::AbstractMesh, grid_v::AbstractGrid, rho::
     nv = grid_v.nv
     dv = grid_v.dv
     f_grid = zeros(nx, nv)
-    for i in 1:nx, j in 1:nv, l in 1:nv
+    for j in 1:nv
         v_j = grid_v.v[j]
-        f_grid[i, j] += grid_v.w[l] * rho[i, l] * Spline(v_j - u[i, l], dv) 
+        for l in 1:nv, i in 1:nx
+           f_grid[i, j] += grid_v.w[l] * rho[i, l] * Spline(v_j - u[i, l], dv) 
+        end
     end
 
     return f_grid
