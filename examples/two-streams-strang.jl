@@ -22,13 +22,14 @@ function f0(x::Float64, v::Float64, k::Float64, T::Float64, u0::Float64)::Float6
     return f0
 end
 
-function mean_f0(v::Float64, T::Float64, mesh_x::AbstractMesh, test_case::String)::Float64
+function mean_f0(test_case::TwoStreams, mesh_x::AbstractMesh, v::Float64)::Float64
     mf0 = 0.0
     nx, dx, xmin, xmax = mesh_x.nx, mesh_x.dx, mesh_x.xmin, mesh_x.xmax
-    k = 2*pi/(xmax - xmin)
+    k = 2pi/(xmax - xmin)
+    T = test_case.vth
+    u0 = test_case.v0
     for i = 1:nx
         x = mesh_x.x[i]
-        u0 = u_ini(x, k, test_case)
         mf0 += (f0(x, v, k, T, u0) * dx)/(xmax-xmin)
     end
     return mf0
@@ -41,18 +42,19 @@ struct UniformGrid <: AbstractGrid
     w::Vector{Float64}
     T::Float64
 
-    function UniformGrid(vmin, vmax, nv, T, mesh_x, test_case)
+    function UniformGrid(vmin, vmax, nv, mesh_x, test_case)
 
+        T = test_case.vth
         sf0 = 0.0
         dv = Float64
         dv = (vmax-vmin)/(nv)
         v = LinRange(vmin, vmax, nv)
         w = zeros(nv)
         for i = 1:nv
-            sf0 += mean_f0(v[i], T, mesh_x, test_case) * dv
+            sf0 += mean_f0(test_case, mesh_x, v[i]) * dv
         end
         for i = 1:nv
-            w[i] = mean_f0(v[i], T, mesh_x, test_case) * dv / (sf0)
+            w[i] = mean_f0(test_case, mesh_x, v[i]) * dv / (sf0)
         end
         new(nv, v, dv, w, T)
     end
