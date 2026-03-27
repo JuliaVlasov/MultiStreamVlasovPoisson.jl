@@ -1,5 +1,6 @@
 using Documenter
 using MultiPhaseVlasov
+using Plots
 
 ENV["GKSwstype"] = "100"
 
@@ -25,5 +26,5 @@ makedocs(
 
 deploydocs(
     devbranch = "main",
-    repo = "gitlab.inria.fr/mingus/code-vp-multistream.git",
+    repo = "github.com/juliavlasov/MultiPhaseVlasov.jl.git",
 )
