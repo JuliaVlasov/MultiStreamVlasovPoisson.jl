@@ -1,23 +1,10 @@
+using DispersionRelations
 using FastInterpolations
 using FFTW
-using LinearAlgebra
+using MultiPhaseVlasov
 using Plots
-using DispersionRelations
 import Statistics: mean
 using .Threads
-
-struct UniformMesh
-    xmin::Float64
-    xmax::Float64
-    nx::Int
-    dx::Float64
-    x::Vector{Float64}
-    function UniformMesh(xmin, xmax, nx)
-        dx = (xmax - xmin) / nx
-        x = LinRange(xmin, xmax, nx + 1)
-        return new(xmin, xmax, nx, dx, x)
-    end
-end
 
 function compute_rho!(
         rho::Vector{Float64},
@@ -28,7 +15,6 @@ function compute_rho!(
     dv = meshv.dx
     rho .= dv .* vec(sum(f, dims = 1))
     rho .-= mean(rho)
-    return rho[nx + 1] = rho[1]
 end
 
 struct PoissonSolver
@@ -49,50 +35,26 @@ struct PoissonSolver
 end
 
 function compute_e!(e::Vector{Float64}, solver::PoissonSolver, rho::Vector{Float64})
-    solver.rhok .= -1im .* fft(rho[1:(end - 1)]) ./ solver.modes
-    e[1:nx] .= real(ifft(solver.rhok))
-    return e[nx + 1] = e[1]
+    solver.rhok .= -1im .* fft(rho) ./ solver.modes
+    e .= real(ifft(solver.rhok))
 end
 
-function advection_x!(
+function advection!(
         f::Matrix{Float64},
         mesh::UniformMesh, v::Vector{Float64},
         dt::Float64
     )
 
     nx, dx = mesh.nx, mesh.dx
-    xi = 1.0:(nx + 1)
-    cache = CubicSplineCache(1.0:(nx + 1); bc = PeriodicBC())
+    xi = 1.0:nx
 
     return @threads for j in eachindex(v)
         alpha = - dt * v[j] / dx
         fi = view(f, :, j)
         xp = xi .+ alpha
-        fi[nx + 1] = fi[1]
-        f[:, j] .= cubic_interp(cache, fi, xp)
+        f[:, j] .= cubic_interp(xi, fi, xp, bc = PeriodicBC(endpoint = :exclusive))
     end
 
-end
-
-function advection_v!(
-        f::Matrix{Float64},
-        mesh::UniformMesh, v::Vector{Float64},
-        dt::Float64
-    )
-
-    nx, dx = mesh.nx, mesh.dx
-    xi = 1.0:(nx + 1)
-    cache = CubicSplineCache(1.0:(nx + 1); bc = ZeroSlopeBC())
-
-    return @threads for j in eachindex(v)
-        alpha = - dt * v[j] / dx
-        fi = view(f, :, j)
-        xp = xi .+ alpha
-        xp = max.(xp, 1)
-        xp = min.(xp, nx + 1)
-        fi[nx + 1] = fi[1]
-        f[:, j] .= cubic_interp(cache, fi, xp)
-    end
 end
 
 function landau_fast(nx, nv, dt, nt::Int64)
@@ -108,15 +70,15 @@ function landau_fast(nx, nv, dt, nt::Int64)
     v = meshv.x
     dx = meshx.dx
 
-    f = zeros(Float64, (nx + 1, nv + 1))
+    f = zeros(Float64, (nx, nv))
     f .= (1.0 .+ eps * cos.(kx * x)) / sqrt(2π) .* transpose(exp.(-0.5 * v .^ 2))
-    fᵗ = zeros(Float64, (nv + 1, nx + 1))
+    fᵗ = zeros(Float64, (nv, nx))
     permutedims!(fᵗ, f, [2, 1])
 
     poisson = PoissonSolver(meshx)
 
-    rho = zeros(nx + 1)
-    e = zeros(nx + 1)
+    rho = zeros(nx)
+    e = zeros(nx)
 
     compute_rho!(rho, meshv, fᵗ)
     compute_e!(e, poisson, rho)
@@ -124,15 +86,15 @@ function landau_fast(nx, nv, dt, nt::Int64)
     t = Float64[0.0]
 
     for it in 1:nt
-        advection_x!(f, meshx, v, 0.5dt)
+        advection!(f, meshx, v, 0.5dt)
         permutedims!(fᵗ, f, [2, 1])
         compute_rho!(rho, meshv, fᵗ)
         compute_e!(e, poisson, rho)
         push!(ℰ, sum(e .* e) * dx)
         push!(t, (it - 0.5) * dt)
-        advection_v!(fᵗ, meshv, e, dt)
+        advection!(fᵗ, meshv, e, dt)
         permutedims!(f, fᵗ, [2, 1])
-        advection_x!(f, meshx, v, 0.5dt)
+        advection!(f, meshx, v, 0.5dt)
     end
 
     return t, ℰ

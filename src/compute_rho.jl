@@ -1,6 +1,4 @@
 export compute_initial_condition
-export compute_rho_total!
-export compute_norm_dx_u
 
 function compute_initial_condition(test_case::InitialCondition, mesh::UniformMesh, grid::UniformGrid)
 
@@ -19,6 +17,7 @@ function compute_initial_condition(test_case::InitialCondition, mesh::UniformMes
     return rho, u
 end
 
+export compute_rho_total!
 
 function compute_rho_total!(rho_tot::Vector{Float64}, grid_v::AbstractGrid, rho)
     fill!(rho_tot, 0.0)
@@ -28,6 +27,8 @@ function compute_rho_total!(rho_tot::Vector{Float64}, grid_v::AbstractGrid, rho)
     end
 end
 
+export compute_norm_dx_u
+
 function compute_norm_dx_u(mesh_x::AbstractMesh, grid_v::AbstractGrid, u)
 
     nv = grid_v.nv
@@ -35,8 +36,8 @@ function compute_norm_dx_u(mesh_x::AbstractMesh, grid_v::AbstractGrid, u)
     dx = mesh_x.dx
 
     dx_u = 0.0
-    for l in 1:nv, i in 1:nx
-        du = abs(u[l][i + 1] - u[l][i]) / dx
+    for l in 1:nv, i in 1:nx-1
+        du = abs(u[i+1,l] - u[i,l]) / dx
         dx_u = max(dx_u, du)
     end
 
