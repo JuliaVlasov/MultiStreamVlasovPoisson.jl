@@ -271,8 +271,10 @@ function main(tfinal = 50)
 
         @timeit to "fft" compute_dx!(dx_u, mesh_x, u, u_hat)
 
-        @timeit to "feet" for j in 1:nv, i in 1:nx
-            xq[j][i] = compute_feet_char(i, dt, mesh_x, view(u_pred, :, j))
+        @timeit to "feet" @threads for j in 1:nv
+            for i in 1:nx
+                xq[j][i] = compute_feet_char(i, dt, mesh_x, view(u_pred, :, j))
+            end
         end
 
         @timeit to "advection" @threads for j = 1:nv
