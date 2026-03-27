@@ -10,12 +10,16 @@ struct SemiLagrangian <: AbstractSolver
     nv :: Int
     dx :: Float64
     xq :: Vector{Vector{Float64}}
+    enew :: Vector{Float64}
+    dudx :: Vector{Float64}
 
     function SemiLagrangian( mesh, grid )
 
         xq = [zeros(mesh.nx) for i in 1:grid.nv]
+        enew = zeros(mesh.nx)
+        dudx = zeros(mesh.nx)
 
-        new( mesh.nx, grid.nv, mesh.dx, xq )
+        new( mesh.nx, grid.nv, mesh.dx, xq, enew, dudx )
 
     end
 
@@ -86,7 +90,6 @@ function update_u!(
         mesh::AbstractMesh, 
         e::AbstractVector, 
         e_pred::AbstractVector,
-        e_new::AbstractVector, 
         dt::Float64
     )
 
@@ -96,9 +99,9 @@ function update_u!(
     for j in eachindex(solver.xq)
 
         u[:, j] .= cubic_interp(xi, view(u, :, j), solver.xq[j], bc = bc)
-        e_new .= cubic_interp(xi, e, solver.xq[j], bc = bc)
-        e_new .+= e_pred
-        u[:, j] .+= 0.5dt .* e_new
+        solver.enew .= cubic_interp(xi, e, solver.xq[j], bc = bc)
+        solver.enew .+= e_pred
+        u[:, j] .+= 0.5dt .* solver.enew
 
     end
 
@@ -110,7 +113,6 @@ function update_rho_corrector!(
         rho::Matrix{Float64}, 
         solver::SemiLagrangian,
         mesh::AbstractMesh, 
-        du_dx::AbstractVector, 
         dv::Matrix{Float64},
         dv_plus::Matrix{Float64},
         dt::Float64, 
@@ -122,9 +124,9 @@ function update_rho_corrector!(
     for j in eachindex(solver.xq)
 
         rho[:,j] .= cubic_interp(xi, view(rho, :, j), solver.xq[j], bc = bc)
-        du_dx .= cubic_interp(xi, view(dv, :, j), solver.xq[j], bc = bc)
-        du_dx .+= view(dv_plus, :, j)
-        rho[:,j] .*= exp.(-0.5dt .* du_dx)
+        solver.dudx .= cubic_interp(xi, view(dv, :, j), solver.xq[j], bc = bc)
+        solver.dudx .+= view(dv_plus, :, j)
+        rho[:,j] .*= exp.(-0.5dt .* solver.dudx)
 
     end
 

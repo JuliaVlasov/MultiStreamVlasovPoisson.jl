@@ -30,16 +30,10 @@ function main(; tfinal = 40)
     dt = 0.1 
     time = [0.0]
 
-    #Array of physical quantities
     elec_energy = [compute_elec_energy(phi, mesh_x)]
-
-    n = 0
 
     e_pred = zeros(nx)
     rho_pred = zeros(nx, nv)
-
-    e_new = zeros(nx)
-    du_dx = zeros(nx)
 
     bc = PeriodicBC(endpoint = :exclusive)
 
@@ -65,11 +59,11 @@ function main(; tfinal = 40)
 
         compute_electric_field!(e_pred, phi, mesh_x, grid_v, rho_pred)
 
-        update_u!( u, solver, mesh_x, e, e_pred, e_new, dt)
+        update_u!( u, solver, mesh_x, e, e_pred, dt)
 
         compute_dx!(dv_plus, mesh_x, u, v_hat)
 
-        update_rho_corrector!( rho, solver, mesh_x, du_dx, dv, dv_plus, dt)
+        update_rho_corrector!( rho, solver, mesh_x, dv, dv_plus, dt)
 
         compute_electric_field!(e, phi, mesh_x, grid_v, rho)
 
