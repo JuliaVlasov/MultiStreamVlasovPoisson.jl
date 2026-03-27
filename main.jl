@@ -13,7 +13,7 @@ global solver::String         #SOLVER = {FV,SL,SL-Strang} First Order Implicit A
 function main(hermite_quad)
     test_case = "two_streams"
     solver    = "SL-Strang"
-    nx, xmin, xmax = 96, 0.0, L
+    nx, xmin, xmax = 256, 0.0, L
     mesh_x = UniformMesh(xmin,xmax,nx)
     nv, vmin, vmax = 256, -6.0, 6.0
     grid_v = UniformGrid(vmin, vmax, nv, T,mesh_x,test_case)
@@ -46,7 +46,7 @@ function main(hermite_quad)
 
     #Temporal loop
     n = 0
-    anim = Animation()
+    #anim = Animation()
     sum_norm_dx_u = 0.0 
     remap_time = 0.0
   while n * dt <= tfinal
@@ -131,46 +131,45 @@ function main(hermite_quad)
             @threads for j in 1:nv
                 advect_v_sol_Strang!(mesh_x,view(u,:,j),view(u_at_step_n, :, j),E,dt)
             end	
-            
             #Assemble rho
 	        compute_rho_total!(rho_tot,grid_v,rho)
             #Solve Poisson 
 	        poisson!(phi, mesh_x, rho_tot,eps)
             E = -1.0*compute_dx!(phi,mesh_x)   
         end
-        compute_rho_total!(rho_tot, grid_v, rho)
+        #compute_rho_total!(rho_tot, grid_v, rho)
     
         push!(elec_energy, compute_elec_energy(phi, mesh_x, eps))
-        push!(mass,compute_total_mass(rho_tot,mesh_x))
-        push!(momentum,compute_momentum(rho,u,mesh_x,grid_v))
-        push!(total_energy,compute_elec_energy(phi, mesh_x, eps) + compute_kinetic_energy(rho,u,mesh_x,grid_v))
+        #push!(mass,compute_total_mass(rho_tot,mesh_x))
+        #push!(momentum,compute_momentum(rho,u,mesh_x,grid_v))
+        #push!(total_energy,compute_elec_energy(phi, mesh_x, eps) + compute_kinetic_energy(rho,u,mesh_x,grid_v))
         n += 1
         push!(time, n * dt)
-        println("iteration = $n, time = $(n * dt) , tr = $remap_time:")
-        println("||E|| = $(last(elec_energy)), Mass = $(last(mass)), int_[tr,time] ||dxU(t)||dt = $sum_norm_dx_u")
+        #println("iteration = $n, time = $(n * dt) , tr = $remap_time:")
+        #println("||E|| = $(last(elec_energy)), Mass = $(last(mass)), int_[tr,time] ||dxU(t)||dt = $sum_norm_dx_u")
         #Make the animation : evolution of the surface plot of the distribution function
         #Plot every "per" 
         #Comment this part if you do not want the animation :  it is the time consuming part of the code.
-        per = 100000
-        if(mod(n,per) == 1)
-            f_on_grid =  interpolate_f_on_grid(mesh_x,grid_v,rho,u)
-            X = []
-            Y = []
-            Z = []
-            for i in 1:nx+1
-                for j in 1:nv
-                    X = push!(X,mesh_x.x[i])
-                    Y = push!(Y,grid_v.v[j])
-                    Z = push!(Z,f_on_grid[i,j])
-                end
-            end
-            p = plot(X,Y,Z,st = [:surface],camera = (0,90),xlabel = "x", ylabel="v",)
-            plot!(p; ylims=(-6.,6.))
-            frame(anim)
-        end
+        #per = 100000
+        #if(mod(n,per) == 1)
+        #    f_on_grid =  interpolate_f_on_grid(mesh_x,grid_v,rho,u)
+        #    X = []
+        #    Y = []
+        #    Z = []
+        #    for i in 1:nx+1
+        #        for j in 1:nv
+        #            X = push!(X,mesh_x.x[i])
+        #            Y = push!(Y,grid_v.v[j])
+        #            Z = push!(Z,f_on_grid[i,j])
+        #        end
+        #    end
+        #    p = plot(X,Y,Z,st = [:surface],camera = (0,90),xlabel = "x", ylabel="v",)
+        #    plot!(p; ylims=(-6.,6.))
+        #    frame(anim)
+        #end
 
     end
-    gif(anim, "fig/$(test_case)_$(solver).gif", fps = 15)
+    #gif(anim, "fig/$(test_case)_$(solver).gif", fps = 15)
     #Plot the final distribution function
     f_on_grid =  interpolate_f_on_grid(mesh_x,grid_v,rho,u)
     X = []

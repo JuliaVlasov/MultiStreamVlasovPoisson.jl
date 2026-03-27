@@ -13,7 +13,7 @@ function compute_feet_char!(y::Float64,dt::Float64,mesh::AbstractMesh,v::Abstrac
     err = 1.0
     x_feet = y
     L = mesh.L
-    while( err > 1E-6 && it < 100 )
+    while( err > 1E-10 && it < 100 )
         x_old = x_feet
         x_feet = mod(y - 1.0 * dt * interpolate_cubic_on_mesh(x_feet,mesh,v),L) ## Probleme avec l'interpolation sur domaine periodique
         err = abs(x_old-x_feet)
@@ -45,7 +45,6 @@ function advect_x_sol_Strang!(
     dx_u = compute_dx!(u,mesh)
     for i in 1:(nx+1)
         jac =    (1+ 1.0 * dt * interpolate_cubic_on_mesh(x_feet_mesh[i],mesh,dx_u) )
-        #println("jac = $jac")
         new_rho[i] = interpolate_cubic_on_mesh(x_feet_mesh[i],mesh,rho)/jac
         new_u[i] = interpolate_cubic_on_mesh(x_feet_mesh[i],mesh,u)
     end
