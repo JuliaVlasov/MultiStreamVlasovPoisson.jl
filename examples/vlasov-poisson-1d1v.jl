@@ -60,7 +60,7 @@ end
 function landau_fast(nx, nv, dt, nt::Int64)
 
     # Set grid
-    eps, kx = 0.001, 0.5
+    eps, kx, v0 = 0.01, 0.2, 2.4
     xmin, xmax = 0.0, 2π / kx
     vmin, vmax = -6.0, 6.0
     meshx = UniformMesh(xmin, xmax, nx)
@@ -72,6 +72,11 @@ function landau_fast(nx, nv, dt, nt::Int64)
 
     f = zeros(Float64, (nx, nv))
     f .= (1.0 .+ eps * cos.(kx * x)) / sqrt(2π) .* transpose(exp.(-0.5 * v .^ 2))
+
+    f .= (1.0 / sqrt(2π)) * transpose(0.5 * exp.(-0.5 * (v.-v0) .* (v.-v0)) 
+                                    + 0.5 * exp.(-0.5 * (v.+v0) .* (v.+v0))) .* (1 .+ eps .* cos.(kx * x))
+
+
     fᵗ = zeros(Float64, (nv, nx))
     permutedims!(fᵗ, f, [2, 1])
 
@@ -85,7 +90,7 @@ function landau_fast(nx, nv, dt, nt::Int64)
     ℰ = Float64[sum(e .* e) * dx]
     t = Float64[0.0]
 
-    for it in 1:nt
+    @gif for it in 1:nt
         advection!(f, meshx, v, 0.5dt)
         permutedims!(fᵗ, f, [2, 1])
         compute_rho!(rho, meshv, fᵗ)
@@ -95,7 +100,11 @@ function landau_fast(nx, nv, dt, nt::Int64)
         advection!(fᵗ, meshv, e, dt)
         permutedims!(f, fᵗ, [2, 1])
         advection!(f, meshx, v, 0.5dt)
-    end
+
+        plot( x, v, f', st = [:surface], camera = (0, 90), xlabel = "x", ylabel = "v")
+        title!("$it")
+
+    end every 10
 
     return t, ℰ
 
