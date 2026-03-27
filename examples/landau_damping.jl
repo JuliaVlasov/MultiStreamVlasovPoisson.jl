@@ -2,13 +2,8 @@
 # # Landau damping with Vlasov-Poisson solver
 
 using DispersionRelations
-using FastInterpolations
-using FFTW
-using LinearAlgebra
 using MultiPhaseVlasov
-using Parameters
 using Plots
-using .Threads
 
 function main(; tfinal = 40)
 
@@ -34,8 +29,6 @@ function main(; tfinal = 40)
 
     e_pred = zeros(nx)
     rho_pred = zeros(nx, nv)
-
-    bc = PeriodicBC(endpoint = :exclusive)
 
     v = zeros(nx)
     dv = zeros(nx, nv)
