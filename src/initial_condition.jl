@@ -7,12 +7,13 @@ include("two_streams.jl")
 include("bump_on_tail.jl")
 include("mono_kinetic.jl")
 
-function mean_f0(test_case::InitialCondition, mesh_x::AbstractMesh, v::Float64)::Float64
+function mean_f0(test_case::InitialCondition, mesh::UniformMesh, v::Float64)::Float64
     mf0 = 0.0
-    nx, dx, L = mesh_x.nx, mesh_x.dx, mesh_x.L
-    for i in 1:(nx + 1)
-        x = mesh_x.x[i]
-        mf0 += f0(test_case, x, v) * dx / L
+    nx, dx, xmin, xmax = mesh.nx, mesh.dx, mesh.xmin, mesh.xmax
+    for i in 1:nx
+        x = mesh.x[i]
+        mf0 += f0(test_case, x, v) * dx / (xmax - xmin)
     end
     return mf0
 end
+

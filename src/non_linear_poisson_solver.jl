@@ -119,3 +119,13 @@ function poisson!(phi::Vector{Float64}, mesh::UniformMesh, rho_tot::Vector{Float
     return phi .= +real(ifft((rho_tot_f ./ (kkx .* kkx)))) / (ϵ * ϵ)
 
 end
+
+export compute_electric_field!
+
+function compute_electric_field!(e, mesh, grid, rho, rho_tot, phi)
+    rho_tot .= vec(sum(rho .* grid.w', dims=2))
+    poisson!(phi, mesh, rho_tot)
+    e .= -1.0 .* compute_dx(phi, mesh)
+end
+
+

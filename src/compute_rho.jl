@@ -2,20 +2,20 @@ export compute_initial_condition
 export compute_rho_total!
 export compute_norm_dx_u
 
-function compute_initial_condition(test_case::InitialCondition, mesh_x::AbstractMesh, grid_v::AbstractGrid)
+function compute_initial_condition(test_case::InitialCondition, mesh::UniformMesh, grid::UniformGrid)
 
     k = test_case.k
-    nx, nv = mesh_x.nx, grid_v.nv
-    rho = [zeros(nx + 1) for i in 1:nv]
-    u = [zeros(nx + 1) for i in 1:nv]
-    rho_tot = zeros(nx + 1)
+    nx, nv = mesh.nx, grid.nv
+    rho = zeros(nx, nv)
+    u = zeros(nx, nv)
+    rho_tot = zeros(nx)
     for j in 1:nv
-        alpha = grid_v.v[j]
-        for i in 1:(nx + 1)
-            x_i = mesh_x.x[i]
-            rho[j][i] = f0(test_case, x_i, alpha) / mean_f0(test_case, mesh_x, alpha)
-            u[j][i] = alpha
-            rho_tot[i] += grid_v.w[j] * rho[j][i]
+        v = grid.v[j]
+        for i in 1:nx
+            x = mesh.x[i]
+            rho[i,j] = f0(test_case, x, v) / mean_f0(test_case, mesh, v)
+            u[i,j] = v
+            rho_tot[i] += grid.w[j] * rho[i,j]
         end
     end
     return rho, u, rho_tot
