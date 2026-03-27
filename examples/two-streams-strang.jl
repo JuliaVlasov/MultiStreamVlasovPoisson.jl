@@ -20,7 +20,7 @@ function main(tfinal = 50)
     mesh_x = UniformMesh(xmin, xmax, nx)
     nv, vmin, vmax = 256, -6.0, 6.0
     grid_v = UniformGrid(vmin, vmax, nv, mesh_x, test_case)
-    rho, u = compute_initial_condition(mesh_x, grid_v, k, T, test_case)
+    rho, u = compute_initial_condition(mesh_x, grid_v, test_case)
     phi = zeros(nx)
     rho_tot = vec(sum(rho .* grid_v.w', dims = 2))
     poisson!(phi, mesh_x, rho_tot, ϵ)
@@ -69,22 +69,20 @@ function main(tfinal = 50)
 
         @timeit to "feet" @threads for j in 1:nv
             itp = cubic_interp(xi, view(u_pred, :, j), bc = bc)
-            for i in 1:nx
-                it = 0
-                err = 1.0
-                x_feet = i
-                while err > 1e-5
-                    x_old = x_feet
-                    x_feet = mod1(i - dt * itp(x_feet) / dx, nx)
-                    err = abs(x_old-x_feet)
-                    if it > 50
-                        @info "err = $err,  it = $it, x_feet = $x_feet, FIXED-POINT DOES NOT CONVERGE"
-                        break
-                    end
-                    it += 1
+            it = 0
+            err = 1.0
+            xnew = xi
+            while err > 1e-5
+                xold = copy(xnew)
+                xnew = mod1.(xi .- dt .* itp(xnew) ./ dx, nx)
+                err = maximum(abs.(xold .- xnew))
+                if it > 50
+                    @info "err = $err,  it = $it, x_feet = $x_feet, FIXED-POINT DOES NOT CONVERGE"
+                    break
                 end
-                xq[j][i] = x_feet
+                it += 1
             end
+            xq[j] .= xnew
         end
 
         @timeit to "advection" @threads for j = 1:nv
