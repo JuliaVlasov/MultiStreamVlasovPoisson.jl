@@ -173,73 +173,42 @@ function compute_dx(v::AbstractVector, mesh::AbstractMesh)
     return dx_v
 end
 
-function evaluate_f_on(
-    i::Int,
-    j::Int,
-    grid_v::UniformGrid,
-    rho::Matrix{Float64},
-    u::Matrix{Float64},
-)
-    nv = grid_v.nv
-    dv = grid_v.dv
-    v_j = grid_v.v[j]
-    f = 0.0
-    for l = 1:nv
-        f += grid_v.w[l] * rho[i, l] * Spline(v_j - u[i, l], dv)
-    end
-    return f
-end
 
-function evaluate_mean_f_on(
-    j::Int,
-    mesh_x::AbstractMesh,
-    grid_v::UniformGrid,
-    rho::Matrix{Float64},
-    u::Matrix{Float64},
-)
-    mean_f = 0.0
-    nv = grid_v.nv
-    dv = grid_v.dv
-    nx = mesh_x.nx
-    dx = mesh_x.dx
-    L = mesh_x.xmax - mesh_x.xmin
-    v_j = grid_v.v[j]
+function remap_f!(rho, u, mesh_x::AbstractMesh, grid_v::UniformGrid)
 
-    for l = 1:nv, i = 1:nx
-        mean_f += (grid_v.w[l] * rho[i, l] * Spline(v_j-u[i, l], dv) * dx) / L
-    end
-    return mean_f
-end
+    nv, dv = grid_v.nv, grid_v.dv
+    nx, dx, xmin, xmax = mesh_x.nx, mesh_x.dx, mesh_x.xmin, mesh_x.xmax
+    L = xmax - xmin
 
-function remap_f_on_uniform_grid(mesh_x::AbstractMesh, grid_v::UniformGrid, rho::Matrix{Float64}, u::Matrix{Float64})
-    nv = grid_v.nv
-    dv = grid_v.dv
-    nx = mesh_x.nx
     new_SF = 0.0
     new_weights = zeros(nv)
     new_rho = zeros(nx, nv)
     new_u   = zeros(nx, nv)
-    #Reinitiaize rho and u on uniform grid
 
     new_u .= grid_v.v'
 
-    for l in 1:nv
-        m_f = evaluate_mean_f_on(l,mesh_x,grid_v,rho,u)
-        for i in 1:nx
-            new_rho[i,l] = evaluate_f_on(i,l,grid_v,rho,u) / m_f
+    @threads for l in 1:nv
+        v_j = grid_v.v[l]
+        m_f = 0.0
+        for i = 1:nx
+            f = 0.0
+            for j = 1:nv
+                df = grid_v.w[j] * rho[i, j] * Spline(v_j-u[i, j], dv)
+                m_f += df * dx / L
+                f += df
+            end
+            new_rho[i,l] = f 
         end
+        new_weights[l] = m_f * dv
+        new_rho[:,l] ./= m_f
     end
-    #Compute the new weights
-    for l in 1:nv
-        new_weights[l] = evaluate_mean_f_on(l,mesh_x,grid_v,rho,u) * dv
-        new_SF+= new_weights[l]
-    end
-    #Update the weights
-    for l in 1:nv
-        new_weights[l] *=(1.0/new_SF)
-        grid_v.w[l] = new_weights[l]
-    end
-    return new_rho, new_u
+
+    new_SF = sum(new_weights)
+
+    grid_v.w .= new_weights ./ new_SF
+
+    rho .= new_rho
+    u .= new_u
 end
 
 function main()
@@ -257,7 +226,7 @@ function main()
     rho, u, rho_tot = compute_initial_condition(mesh_x, grid_v, k, T, test_case)
     phi = zeros(nx)
     poisson!(phi, mesh_x, rho_tot, ϵ)
-    E = -1.0*compute_dx(phi, mesh_x)
+    e = -1.0*compute_dx(phi, mesh_x)
     rho_pred = zeros(nx, nv)
     u_pred = zeros(nx, nv)
     phi_pred = zeros(nx)
@@ -273,10 +242,12 @@ function main()
     sum_norm_dx_u = 0.0
     remap_time = 0.0
 
+    jac = zeros(nx)
     dx_u = zeros(nx, nv)
     u_hat = zeros(ComplexF64, nx, nv)
 
     bc = PeriodicBC(endpoint = :exclusive)
+    xq = [zeros(nx) for j in 1:nv]
 
     while n * dt <= tfinal
         iter = 0
@@ -289,31 +260,31 @@ function main()
         if (sum_norm_dx_u > threshold)
             @info "Remapping f at time = $(n*dt), solver = $solver"
             remap_time = n * dt
-            rho, u = remap_f_on_uniform_grid(mesh_x, grid_v, rho, u)
+            remap_f!(rho, u, mesh_x, grid_v)
             sum_norm_dx_u = 0.0
         end
 
-        u_pred .= u .+ 0.5dt .* E
+        u_pred .= u .+ 0.5dt .* e
 
         compute_dx!(dx_u, mesh_x, u, u_hat)
-        xq = [
-            [compute_feet_char(i, dt, mesh_x, view(u_pred, :, j)) for i = 1:nx] for
-            j = 1:nv
-        ]
+
+        for j in 1:nv, i in 1:nx
+            xq[j][i] = compute_feet_char(i, dt, mesh_x, view(u_pred, :, j))
+        end
 
         xi = 1.0:nx
         for j = 1:nv
-            jac = 1 .+ dt * cubic_interp(xi, view(dx_u, :, j), xq[j], bc = bc)
+            jac .= 1 .+ dt * cubic_interp(xi, view(dx_u, :, j), xq[j], bc = bc)
             rho[:, j] .= cubic_interp(xi, view(rho, :, j), xq[j], bc = bc) ./ jac
             u[:, j] .= cubic_interp(xi, view(u_pred, :, j), xq[j], bc = bc)
         end
 
-        u .+= 0.5dt .* E
+        u .+= 0.5dt .* e
 
         rho_tot .= vec(sum(rho .* grid_v.w', dims = 2))
 
         poisson!(phi, mesh_x, rho_tot, ϵ)
-        E = -1.0*compute_dx(phi, mesh_x)
+        e .= -1.0*compute_dx(phi, mesh_x)
 
         push!(elec_energy, compute_elec_energy(phi, mesh_x))
         n += 1
