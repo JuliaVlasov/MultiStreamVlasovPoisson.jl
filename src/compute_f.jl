@@ -1,18 +1,30 @@
 export interpolate_f_on_grid
 
-function interpolate_f_on_grid(mesh_x::AbstractMesh, grid_v::UniformGrid, rho::Matrix{Float64}, u::Matrix{Float64})
+function interpolate_f_on_grid(mesh_x::AbstractMesh, grid_v::AbstractGrid, rho::Matrix{Float64}, u::Matrix{Float64})
 
     nx = mesh_x.nx
     nv = grid_v.nv
     dv = grid_v.dv
-    f_grid = zeros(nx + 1, nv)
-    for i in 1:(nx + 1), j in 1:nv, l in 1:nv
+    f_grid = zeros(nx, nv)
+    for i in 1:nx, j in 1:nv, l in 1:nv
         v_j = grid_v.v[j]
-        f_grid[i, j] += grid_v.w[l] * rho[i, l] * Spline(v_j - u[i, l], dv) ##Naive approchae we do not localize v_j-u_{i,l} to optimize later
+        f_grid[i, j] += grid_v.w[l] * rho[i, l] * Spline(v_j - u[i, l], dv) 
     end
 
     return f_grid
 
+end
+#
+#Spline of order 3 supp S_3 = [-2 h , 2 h]
+function Spline(x::Float64, h::Float64)
+    if (h < abs(x) < 2 * h)
+        S = (1.0 / 6.0) * ((2 - abs(x / h)) * (2 - abs(x / h)) * (2 - abs(x / h)))
+    elseif (abs(x) < h)
+        S = (1.0 / 6.0) * (4.0 - 6.0 * (abs(x / h) * abs(x / h)) + 3.0 * (abs(x / h) * abs(x / h) * abs(x / h)))
+    else
+        S = 0
+    end
+    return S / h
 end
 
 export remap_f!
@@ -46,6 +58,43 @@ function remap_f!(mesh_x::AbstractMesh, grid_v::UniformGrid, rho::Matrix{Float64
     return u .= new_u
 end
 
+function remap_f!(rho, u, mesh_x::AbstractMesh, grid_v::AbstractGrid)
+
+    nv, dv = grid_v.nv, grid_v.dv
+    nx, dx, xmin, xmax = mesh_x.nx, mesh_x.dx, mesh_x.xmin, mesh_x.xmax
+    L = xmax - xmin
+
+    new_SF = 0.0
+    new_weights = zeros(nv)
+    new_rho = zeros(nx, nv)
+    new_u   = zeros(nx, nv)
+
+    new_u .= grid_v.v'
+
+    @threads for l in 1:nv
+        v_j = grid_v.v[l]
+        m_f = 0.0
+        for i = 1:nx
+            f = 0.0
+            for j = 1:nv
+                df = grid_v.w[j] * rho[i, j] * Spline(v_j-u[i, j], dv)
+                m_f += df * dx / L
+                f += df
+            end
+            new_rho[i,l] = f 
+        end
+        new_weights[l] = m_f * dv
+        new_rho[:,l] ./= m_f
+    end
+
+    new_SF = sum(new_weights)
+
+    grid_v.w .= new_weights ./ new_SF
+
+    rho .= new_rho
+    u .= new_u
+end
+
 #Evaluate f on (x_i,v_j)
 function evaluate_f_on(i::Int, j::Int, grid_v::UniformGrid, rho::Matrix{Float64}, u::Matrix{Float64})
     nv = grid_v.nv
@@ -74,14 +123,3 @@ function evaluate_mean_f_on(j::Int, mesh_x::AbstractMesh, grid_v::UniformGrid, r
     return mean_f
 end
 
-#Spline of order 3 supp S_3 = [-2 h , 2 h]
-function Spline(x::Float64, h::Float64)
-    if (h < abs(x) < 2 * h)
-        S = (1.0 / 6.0) * ((2 - abs(x / h)) * (2 - abs(x / h)) * (2 - abs(x / h)))
-    elseif (abs(x) < h)
-        S = (1.0 / 6.0) * (4.0 - 6.0 * (abs(x / h) * abs(x / h)) + 3.0 * (abs(x / h) * abs(x / h) * abs(x / h)))
-    else
-        S = 0
-    end
-    return S / h
-end

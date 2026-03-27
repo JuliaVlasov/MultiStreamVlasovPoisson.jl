@@ -35,3 +35,21 @@ function compute_e!(e::Vector{Float64}, solver::PoissonSolver, rho::Vector{Float
     solver.rhok .= -1im .* fft(rho) ./ solver.modes
     e .= real(ifft(solver.rhok))
 end
+
+export poisson!
+
+function poisson!(
+    phi::Vector{Float64},
+    mesh::UniformMesh,
+    rho_tot::Vector{Float64},
+    ϵ::Float64,
+)
+
+    rho_tot_f=fft(rho_tot .- 1)
+    rho_tot_f[1]=0
+    kkx=mesh.kx
+    kkx[1]=1
+    ff_P = (ϵ * ϵ)*kkx .* kkx
+    phi.=+real(ifft((rho_tot_f ./ (ff_P))))
+
+end

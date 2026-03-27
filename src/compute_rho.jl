@@ -43,3 +43,5 @@ function compute_norm_dx_u(mesh_x::AbstractMesh, grid_v::AbstractGrid, u)
 
     return dx_u
 end
+
+
