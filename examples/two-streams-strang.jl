@@ -2,91 +2,9 @@ using DispersionRelations
 using FFTW
 using Plots
 using .Threads
-import MultiPhaseVlasov: AbstractMesh, UniformMesh, compute_elec_energy
-import MultiPhaseVlasov: compute_dx!, poisson!
-import MultiPhaseVlasov: compute_norm_dx_u, interpolate_f_on_grid
-import MultiPhaseVlasov: TwoStreams, AbstractMesh, AbstractGrid
-import MultiPhaseVlasov: Spline
-import MultiPhaseVlasov: remap_f!, compute_dx
+using MultiPhaseVlasov
 using FastInterpolations
 using TimerOutputs
-
-u_ini(x::Float64, k::Float64, test_case::String)::Float64 = 2.4
-
-function f0(x::Float64, v::Float64, k::Float64, T::Float64, u0::Float64)::Float64
-    a = 0.01
-    f0 =
-        (1.0 / sqrt(2π*T)) *
-        (0.5 * exp(-0.5 * (v-u0) * (v-u0)/T) + 0.5 * exp(-0.5 * (v+u0) * (v+u0)/T)) *
-        (1 + a * cos(k * x))
-    return f0
-end
-
-function mean_f0(test_case::TwoStreams, mesh_x::AbstractMesh, v::Float64)::Float64
-    mf0 = 0.0
-    nx, dx, xmin, xmax = mesh_x.nx, mesh_x.dx, mesh_x.xmin, mesh_x.xmax
-    k = 2pi/(xmax - xmin)
-    T = test_case.vth
-    u0 = test_case.v0
-    for i = 1:nx
-        x = mesh_x.x[i]
-        mf0 += (f0(x, v, k, T, u0) * dx)/(xmax-xmin)
-    end
-    return mf0
-end
-
-struct UniformGrid <: AbstractGrid
-    nv::Int
-    v::Vector{Float64}
-    dv::Float64
-    w::Vector{Float64}
-    T::Float64
-
-    function UniformGrid(vmin, vmax, nv, mesh_x, test_case)
-
-        T = test_case.vth
-        sf0 = 0.0
-        dv = Float64
-        dv = (vmax-vmin)/(nv)
-        v = LinRange(vmin, vmax, nv)
-        w = zeros(nv)
-        for i = 1:nv
-            sf0 += mean_f0(test_case, mesh_x, v[i]) * dv
-        end
-        for i = 1:nv
-            w[i] = mean_f0(test_case, mesh_x, v[i]) * dv / (sf0)
-        end
-        new(nv, v, dv, w, T)
-    end
-
-end
-
-
-function compute_initial_condition(
-    mesh_x::AbstractMesh,
-    grid_v::AbstractGrid,
-    k::Float64,
-    T::Float64,
-    test_case::TwoStreams,
-)
-
-    nx, nv = mesh_x.nx, grid_v.nv
-    rho = zeros(nx, nv)
-    u = zeros(nx, nv)
-    rho_tot = zeros(nx)
-    for j = 1:nv
-        alpha = grid_v.v[j]
-        for i = 1:nx
-            x_i = mesh_x.x[i]
-            rho[i, j] =
-                f0(x_i, alpha, k, T, test_case.v0) /
-                mean_f0(test_case, mesh_x, alpha)
-            u[i, j] = alpha
-            rho_tot[i] += grid_v.w[j] * rho[i, j]
-        end
-    end
-    return rho, u, rho_tot
-end
 
 const to = TimerOutput()
 
@@ -102,7 +20,7 @@ function main(tfinal = 50)
     mesh_x = UniformMesh(xmin, xmax, nx)
     nv, vmin, vmax = 256, -6.0, 6.0
     grid_v = UniformGrid(vmin, vmax, nv, mesh_x, test_case)
-    rho, u, rho_tot = compute_initial_condition(mesh_x, grid_v, k, T, test_case)
+    rho, u = compute_initial_condition(mesh_x, grid_v, k, T, test_case)
     phi = zeros(nx)
     rho_tot = vec(sum(rho .* grid_v.w', dims = 2))
     poisson!(phi, mesh_x, rho_tot, ϵ)
