@@ -70,4 +70,6 @@ makedocs(;
     pages = list_pages(),
 )
 
-deploydocs(; repo = "github.com/juliavlasov/MultiPhaseVlasov.jl")
+deploydocs(; repo = "github.com/JuliaVlasov/MultiPhaseVlasov.jl.git",
+             branch = "gh-pages",
+             devbranch = "main")
